@@ -1,0 +1,5 @@
+shdlc.c:38:6:SHDLC_LoadMyVector	6
+shdlc.c:78:5:SHDLC_CalculateDataSize	8
+shdlc.c:117:8:SHDLC_revertByteStuffing	10
+shdlc.c:155:7:SHDLC_bytesToFloat	2
+shdlc.c:171:6:SHDLC_llenarConcentraciones	1

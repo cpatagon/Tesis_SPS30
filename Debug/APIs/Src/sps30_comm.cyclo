@@ -1,0 +1,11 @@
+sps30_comm.c:39:6:sps30_send_command	1
+sps30_comm.c:43:6:sps30_receive_async	1
+sps30_comm.c:47:6:sps30_send_receive	1
+sps30_comm.c:52:6:sps30_start_measurement	1
+sps30_comm.c:74:6:sps30_stop_measurement	1
+sps30_comm.c:93:6:sps30_sleep	1
+sps30_comm.c:109:6:sps30_read_data	1
+sps30_comm.c:148:19:sps30_get_concentrations	1
+sps30_comm.c:164:6:sps30_serial_number	1
+sps30_comm.c:180:6:sps30_wake_up	1
+sps30_comm.c:199:6:SPS30_init	1
