@@ -1,0 +1,4 @@
+time_rtc.c:55:6:time_rtc_Init	1
+time_rtc.c:60:6:time_rtc_GetFormattedDateTime	1
+time_rtc.c:74:6:time_rtc_PrintFormattedDateTime	1
+time_rtc.c:81:6:DS1307_SetInitialTime	1

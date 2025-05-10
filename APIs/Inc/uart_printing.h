@@ -35,6 +35,9 @@
 
 typedef struct UART_Printing UART_Printing;
 
+
+
+
 struct UART_Printing {
     UART_HandleTypeDef *huart;  // Manejador de UART
 
