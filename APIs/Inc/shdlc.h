@@ -37,10 +37,20 @@
 /* === Definiciones de macros públicas ========================================================== */
 #define FRAME_DATA_VECTOR_SIZE_MOSI 60
 #define FRAME_DATA_VECTOR_SIZE_MISO 60
+#define SPS30_ERR_STATE_MASK 0x8000
 
 /* === Declaraciones de tipos de datos públicos ================================================= */
 
 // Definición de la estructura para las concentraciones
+/**
+ * @struct ConcentracionesPM
+ * @brief Almacena los valores de concentración de material particulado medidos por el sensor SPS30.
+ *
+ * @param pm1_0  Concentración de partículas PM1.0 [µg/m³]
+ * @param pm2_5  Concentración de partículas PM2.5 [µg/m³]
+ * @param pm4_0  Concentración de partículas PM4.0 [µg/m³]
+ * @param pm10   Concentración de partículas PM10 [µg/m³]
+ */
 typedef struct {
     float pm1_0;
     float pm2_5;

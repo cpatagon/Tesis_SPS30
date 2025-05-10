@@ -6,20 +6,26 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../APIs/Src/ParticulateDataAnalyzer.c \
+../APIs/Src/proceso_oservador.c \
 ../APIs/Src/shdlc.c \
 ../APIs/Src/sps30_comm.c \
+../APIs/Src/sps30_multi.c \
 ../APIs/Src/uart_printing.c 
 
 OBJS += \
 ./APIs/Src/ParticulateDataAnalyzer.o \
+./APIs/Src/proceso_oservador.o \
 ./APIs/Src/shdlc.o \
 ./APIs/Src/sps30_comm.o \
+./APIs/Src/sps30_multi.o \
 ./APIs/Src/uart_printing.o 
 
 C_DEPS += \
 ./APIs/Src/ParticulateDataAnalyzer.d \
+./APIs/Src/proceso_oservador.d \
 ./APIs/Src/shdlc.d \
 ./APIs/Src/sps30_comm.d \
+./APIs/Src/sps30_multi.d \
 ./APIs/Src/uart_printing.d 
 
 
@@ -30,7 +36,7 @@ APIs/Src/%.o APIs/Src/%.su APIs/Src/%.cyclo: ../APIs/Src/%.c APIs/Src/subdir.mk
 clean: clean-APIs-2f-Src
 
 clean-APIs-2f-Src:
-	-$(RM) ./APIs/Src/ParticulateDataAnalyzer.cyclo ./APIs/Src/ParticulateDataAnalyzer.d ./APIs/Src/ParticulateDataAnalyzer.o ./APIs/Src/ParticulateDataAnalyzer.su ./APIs/Src/shdlc.cyclo ./APIs/Src/shdlc.d ./APIs/Src/shdlc.o ./APIs/Src/shdlc.su ./APIs/Src/sps30_comm.cyclo ./APIs/Src/sps30_comm.d ./APIs/Src/sps30_comm.o ./APIs/Src/sps30_comm.su ./APIs/Src/uart_printing.cyclo ./APIs/Src/uart_printing.d ./APIs/Src/uart_printing.o ./APIs/Src/uart_printing.su
+	-$(RM) ./APIs/Src/ParticulateDataAnalyzer.cyclo ./APIs/Src/ParticulateDataAnalyzer.d ./APIs/Src/ParticulateDataAnalyzer.o ./APIs/Src/ParticulateDataAnalyzer.su ./APIs/Src/proceso_oservador.cyclo ./APIs/Src/proceso_oservador.d ./APIs/Src/proceso_oservador.o ./APIs/Src/proceso_oservador.su ./APIs/Src/shdlc.cyclo ./APIs/Src/shdlc.d ./APIs/Src/shdlc.o ./APIs/Src/shdlc.su ./APIs/Src/sps30_comm.cyclo ./APIs/Src/sps30_comm.d ./APIs/Src/sps30_comm.o ./APIs/Src/sps30_comm.su ./APIs/Src/sps30_multi.cyclo ./APIs/Src/sps30_multi.d ./APIs/Src/sps30_multi.o ./APIs/Src/sps30_multi.su ./APIs/Src/uart_printing.cyclo ./APIs/Src/uart_printing.d ./APIs/Src/uart_printing.o ./APIs/Src/uart_printing.su
 
 .PHONY: clean-APIs-2f-Src
 

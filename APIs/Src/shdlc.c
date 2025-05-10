@@ -168,9 +168,12 @@ float SHDLC_bytesToFloat(uint8_t * bytes) {
 }
 
 // Función para llenar la estructura con los datos de concentración
-void SHDLC_llenarConcentraciones(ConcentracionesPM * concentraciones, uint8_t * data) {
+void SHDLC_llenarConcentraciones(ConcentracionesPM *concentraciones, uint8_t *data) {
+    if (!concentraciones || !data) return;
+
+    // Al menos 4 * sizeof(float) = 16 bytes
     concentraciones->pm1_0 = SHDLC_bytesToFloat(&data[0]);
     concentraciones->pm2_5 = SHDLC_bytesToFloat(&data[4]);
     concentraciones->pm4_0 = SHDLC_bytesToFloat(&data[8]);
-    concentraciones->pm10 = SHDLC_bytesToFloat(&data[12]);
+    concentraciones->pm10  = SHDLC_bytesToFloat(&data[12]);
 }

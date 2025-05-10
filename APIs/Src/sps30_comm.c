@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 
+extern UART_Printing uart;
+
 #define BUFFER_SIZE                  7
 #define BUFFER_SIZE_READ_DATA        60
 #define BUFFER_SIZE_SERIAL_NUMBER    30
@@ -48,6 +50,7 @@ void sps30_send_receive(SPS30 *self, const uint8_t *command, uint16_t commandSiz
     HAL_UART_Transmit(self->huart, command, commandSize, 100);
     HAL_UART_Receive(self->huart, dataBuffer, bufferSize, 100);
 }
+
 
 void sps30_start_measurement(SPS30 *self) {
     uint8_t startCmd[] = SPS30_FRAME_START_MEASUREMENT; // Comando para iniciar la medición
@@ -162,20 +165,23 @@ ConcentracionesPM sps30_get_concentrations(SPS30 *self) {
 }
 
 void sps30_serial_number(SPS30 *self) {
-    uint8_t readCmd[] = SPS30_FRAME_SERIAL_NUMBER;
-    uint8_t dataBuf[BUFFER_SIZE_SERIAL_NUMBER] = {0};
-    char respuestaStr[BUFFER_SIZE_RESPONSE];
+    uint8_t cmd[] = SPS30_FRAME_SERIAL_NUMBER;
+    uint8_t stuffed[BUFFER_SIZE_SERIAL_NUMBER] = {0};
+    uint8_t original[BUFFER_SIZE_SERIAL_NUMBER] = {0};
 
-    //uart_print(MSG_SOLICITAR);
-    //uart_vector_print(sizeof(readCmd), readCmd);
-    self->send_receive(self, readCmd, sizeof(readCmd), dataBuf, sizeof(dataBuf));
-    //uart_print(MSG_RESPUESTA);
-    //uart_vector_print(sizeof(dataBuf), dataBuf);
+    self->send_receive(self, cmd, sizeof(cmd), stuffed, sizeof(stuffed));
+    SHDLC_revertByteStuffing(stuffed, sizeof(stuffed), original);
 
-    int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
-    //snprintf(respuestaStr, sizeof(respuestaStr), MENSAJE_SIZE_RESPUESTA, longRespuesta);
-    //uart_print(respuestaStr);
+    // Extrae los 16 bytes del número de serie a partir del offset 6
+    char serial[17] = {0};  // 16 caracteres + nulo
+    memcpy(serial, &original[6], 16);  // Ajustar si cambia el protocolo
+
+    // Imprimir de forma legible
+    char mensaje[64];
+    snprintf(mensaje, sizeof(mensaje), "\nSerial Number: %s\n", serial);
+    uart.print(&uart, mensaje);
 }
+
 
 void sps30_wake_up(SPS30 *self) {
     uint8_t Pulse = SPS30_PULSE_WAKE_UP;
