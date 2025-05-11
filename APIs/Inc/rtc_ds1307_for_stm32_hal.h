@@ -30,6 +30,7 @@
 //#include "main.h"
 
 #include "i2c.h"
+#include <stdbool.h>
 
 /*----------------------------------------------------------------------------*/
 /** @file
@@ -81,6 +82,9 @@
 /** @brief Tiempo de espera para las operaciones de comunicación I2C con DS1307. */
 #define DS1307_TIMEOUT     1000
 
+
+#define DS1307_ADDRESS 0x68  // Dirección I2C del DS1307/DS3231
+
 /* === Cabecera C++ ============================================================================ */
 #ifdef __cplusplus
 extern "C" {
@@ -89,6 +93,15 @@ extern "C" {
 /* === Public macros definitions =============================================================== */
 
 /* === Public data type declarations =========================================================== */
+
+typedef struct {
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t hours;
+    uint8_t minutes;
+    uint8_t seconds;
+} DS1307_DateTime;
 
 /* === Public variable declarations ============================================================ */
 
@@ -359,6 +372,12 @@ uint8_t DS1307_DecodeBCD(uint8_t bin);
  * @return Valor en formato BCD equivalente al número decimal proporcionado.
  */
 uint8_t DS1307_EncodeBCD(uint8_t dec);
+
+/**
+ * @brief Verifica si el DS1307 está conectado en el bus I2C
+ * @retval true si responde, false si no
+ */
+bool DS1307_IsConnected(void);
 
 /* === End of documentation ==================================================================== */
 #endif

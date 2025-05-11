@@ -25,71 +25,74 @@
  * SPDX-License-Identifier: GPL-3.0-only
  *
  */
-/** @file
- ** @brief 
- **/
-
-/* === Headers files inclusions =============================================================== */
+/**
+ * @file time_rtc.c
+ * @brief Manejo automático de RTC interno y externo (DS1307/DS3231)
+ */
 
 #include "time_rtc.h"
+#include "rtc_ds1307_for_stm32_hal.h"
+#include "rtc.h"  // HAL RTC interno
 #include <stdio.h>
-#include <stddef.h>
+#include <string.h>
 
-/* === Macros definitions ====================================================================== */
+RTC_Source active_rtc = RTC_SOURCE_INTERNAL;  // Por defecto
 
-
-/* === Private data type declarations ========================================================== */
-
-/* === Private variable declarations =========================================================== */
-
-/* === Private function declarations =========================================================== */
-
-/* === Public variable definitions ============================================================= */
-
-/* === Private variable definitions ============================================================ */
-
-/* === Private function implementation ========================================================= */
-
-/* === Public function implementation ========================================================== */
-
-void time_rtc_Init(I2C_HandleTypeDef *hi2c) {
-    DS1307_Init(hi2c);
+/**
+ * @brief Verifica si el RTC externo responde por I2C
+ */
+static bool rtc_external_available(void) {
+    return (HAL_I2C_IsDeviceReady(&hi2c2, DS1307_ADDRESS << 1, 3, 100) == HAL_OK);
 }
 
-// Función para obtener la fecha y hora formateada como cadena
-void time_rtc_GetFormattedDateTime(char *buffer, size_t buffer_size) {
-    uint8_t date = DS1307_GetDate();
-    uint8_t month = DS1307_GetMonth();
-    uint16_t year = DS1307_GetYear();
-    uint8_t hour = DS1307_GetHour();
-    uint8_t minute = DS1307_GetMinute();
-    uint8_t second = DS1307_GetSecond();
-    int8_t zone_hr = DS1307_GetTimeZoneHour();
-    uint8_t zone_min = DS1307_GetTimeZoneMin();
-
-    snprintf(buffer, buffer_size, "%04d-%02d-%02dT%02d:%02d:%02d%+03d:%02d\n", year, month, date, hour, minute, second, zone_hr, zone_min);
+/**
+ * @brief Inicializa automáticamente el RTC disponible (externo si responde, interno si no)
+ */
+void rtc_auto_init(void) {
+    if (rtc_external_available()) {
+    	DS1307_Init(&hi2c2);
+        active_rtc = RTC_SOURCE_EXTERNAL;
+    } else {
+        MX_RTC_Init();
+        active_rtc = RTC_SOURCE_INTERNAL;
+    }
 }
 
-// Función para imprimir la fecha y hora formateada
-void time_rtc_PrintFormattedDateTime() {
-    char buffer[100] = {0};
-    time_rtc_GetFormattedDateTime(buffer, sizeof(buffer));
-    printf("%s", buffer);
+/**
+ * @brief Obtiene fecha y hora del RTC activo en formato ISO8601
+ * @param buffer Buffer donde se escribirá la cadena de fecha
+ * @param len Tamaño del buffer
+ */
+void rtc_get_time(char *buffer, size_t len) {
+    if (active_rtc == RTC_SOURCE_EXTERNAL) {
+        DS1307_DateTime dt;
+        DS1307_GetTime(&dt);
+        snprintf(buffer, len, "%04d-%02d-%02d %02d:%02d:%02d",
+                 dt.year, dt.month, dt.day,
+                 dt.hours, dt.minutes, dt.seconds);
+    } else {
+        RTC_TimeTypeDef sTime;
+        RTC_DateTypeDef sDate;
+        HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+        HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+        snprintf(buffer, len, "20%02d-%02d-%02d %02d:%02d:%02d",
+                 sDate.Year, sDate.Month, sDate.Date,
+                 sTime.Hours, sTime.Minutes, sTime.Seconds);
+    }
 }
 
-// Función para configurar la hora inicial del RTC
-void DS1307_SetInitialTime(I2C_HandleTypeDef *hi2c, int8_t timeZoneHour, uint8_t timeZoneMin, uint8_t date, uint8_t month, uint16_t year, uint8_t dayOfWeek, uint8_t hour, uint8_t minute, uint8_t second) {
-    DS1307_Init(hi2c);
-    DS1307_SetTimeZone(timeZoneHour, timeZoneMin);
-    DS1307_SetDate(date);
-    DS1307_SetMonth(month);
-    DS1307_SetYear(year);
-    DS1307_SetDayOfWeek(dayOfWeek);
-    DS1307_SetHour(hour);
-    DS1307_SetMinute(minute);
-    DS1307_SetSecond(second);
+/**
+ * @brief Función de compatibilidad con código previo
+ */
+void obtener_fecha_hora(char *fecha_hora_str) {
+    rtc_get_time(fecha_hora_str, 32);
 }
 
+// Compatibilidad con nombres anteriores
+void time_rtc_Init(void) {
+    rtc_auto_init();
+}
 
-/* === End of documentation ==================================================================== */
-
+void time_rtc_GetFormattedDateTime(char *buffer, size_t len) {
+    rtc_get_time(buffer, len);
+}

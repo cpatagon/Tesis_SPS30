@@ -22,7 +22,7 @@
 #include "rtc.h"
 #include "usart.h"
 #include "gpio.h"
-#include "time_rtc.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -33,6 +33,7 @@
 #include "uart_printing.h"
 #include "proceso_observador.h"
 #include "data_logger.h"
+#include "time_rtc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -111,13 +112,15 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* Inicializar sensores SPS30 disponibles*/
+  rtc_auto_init();    // Detecta y configura el RTC correcto
+
+  //char fecha_hora[32];
+  //obtener_fecha_hora(fecha_hora);
+ //uart_printf("Fecha y hora actual: %s\r\n", fecha_hora);
 
   inicializar_sensores_sps30();
 
-  /* Initialize RTC */
 
-  uart.print(&uart, "Inicializando RTC DS1307...\n");
-  time_rtc_Init(&hi2c2);
 
 
   /*Inicializar el objeto SPS30 con el manejador de UART*/
@@ -125,18 +128,21 @@ int main(void)
   SPS30_init(&sps30, &huart5);
   UART_Printing_init(&uart, &huart3);
 
+
+  /* Initialize RTC */
+
+  uart.print(&uart, "Inicializando RTC DS1307...\n");
+  //time_rtc_Init(&hi2c2);
+
   /* Initialization welcome message */
   uart.print(&uart, "\n\n-----------------------------------------------------------\n");
   uart.print(&uart, "*** Sistema de Monitoreo de Material Particulado ***\n");
   uart.print(&uart, "-----------------------------------------------------------\n");
 
 
-
-
-
   /* Initialize RTC */
   uart.print(&uart, "Inicializando RTC DS1307...\n");
-  time_rtc_Init(&hi2c2);
+  //time_rtc_Init(&hi2c2);
 
    /*Despierta al sensor SPS30*/
    sps30.wake_up(&sps30);

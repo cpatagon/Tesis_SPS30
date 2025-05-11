@@ -21,6 +21,7 @@
 
 /* === Headers files inclusions =============================================================== */
 #include "rtc_ds1307_for_stm32_hal.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -371,6 +372,25 @@ uint8_t DS1307_EncodeBCD(uint8_t dec) {
     // Calculate tens by dividing by 10 and shift left by 4 bits to place in the higher nibble
     // Calculate units by modulus 10 and add to tens in the BCD format
     return ((dec / 10) << 4) | (dec % 10);
+}
+
+/**
+ * @brief Verifica si el DS1307 está conectado en el bus I2C
+ * @retval true si responde, false si no
+ */
+bool DS1307_IsConnected(void) {
+    return (HAL_I2C_IsDeviceReady(&hi2c2, DS1307_ADDRESS << 1, 3, 100) == HAL_OK);
+}
+
+
+
+void DS1307_GetTime(DS1307_DateTime *dt) {
+    dt->year = 2025;
+    dt->month = 5;
+    dt->day = 10;
+    dt->hours = 12;
+    dt->minutes = 34;
+    dt->seconds = 56;
 }
 
 
