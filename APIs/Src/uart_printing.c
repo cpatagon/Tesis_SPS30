@@ -46,9 +46,25 @@ void uart_vector_print(UART_Printing *self, uint16_t data_len, const uint8_t *da
     uart_print(self, buffer); // Imprimir todos los bytes formateados.
 }
 
+
+void uart_print_debug(UART_HandleTypeDef *huart, const char *msg) {
+    HAL_UART_Transmit(huart, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+}
+
+
+static void uart_default_print(UART_Printing *self, const char *message) {
+    HAL_UART_Transmit(self->huart, (uint8_t *)message, strlen(message), HAL_MAX_DELAY);
+}
+
+static void uart_default_vector_print(UART_Printing *self, uint16_t data_len, const uint8_t *data) {
+    HAL_UART_Transmit(self->huart, (uint8_t *)data, data_len, HAL_MAX_DELAY);
+}
+
+UART_Printing uart_logger;
+
 void UART_Printing_init(UART_Printing *self, UART_HandleTypeDef *huart) {
     self->huart = huart;
-    self->print = uart_print;
-    self->vector_print = uart_vector_print;
+    self->print = uart_default_print;
+    self->vector_print = uart_default_vector_print;
 }
 

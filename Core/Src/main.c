@@ -18,19 +18,23 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "i2c.h"
 #include "rtc.h"
 #include "usart.h"
 #include "gpio.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>  // Añade esto para sprintf
 #include <string.h> // Añade esto para strlen
-//#include "sps30.h"
 #include "sps30_multi.h"
 #include "sps30_comm.h"
 #include "uart_printing.h"
 #include "proceso_observador.h"
+#include "data_logger.h"
+#include "time_rtc.h"
+#include "rtc_ds3231_for_stm32_hal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,6 +44,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+#define UART_BUFFER_SIZE 64
+
 
 /* USER CODE END PD */
 
@@ -55,6 +62,8 @@
 // Declaración del objeto SPS30
 SPS30 sps30;
 UART_Printing uart;
+extern UART_HandleTypeDef huart3;
+extern UART_Printing uart_logger;
 
 /* USER CODE END PV */
 
@@ -105,101 +114,110 @@ int main(void)
   MX_UART7_Init();
   MX_USART6_UART_Init();
   MX_USART1_UART_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
 
-  // Inicializar sensores SPS30 disponibles
+  /* Inicializar sensores SPS30 disponibles*/
+  rtc_auto_init();    // Detecta y configura el RTC correcto
+  UART_Printing_init(&uart_logger, &huart3);
+  rtc_set_test_time(); // <- llamada de prueba
+
+
+  //char fecha_hora[32];
+  //obtener_fecha_hora(fecha_hora);
+ //uart_printf("Fecha y hora actual: %s\r\n", fecha_hora);
+
   inicializar_sensores_sps30();
 
-/*
-
-  */
-
-    // Inicializar el objeto SPS30 con el manejador de UART
-        SPS30_init(&sps30, &huart5);
-        UART_Printing_init(&uart, &huart3);
 
 
 
-        static uint8_t * message =
-            (uint8_t *)"\n\n"
-                       "-----------------------------------------------------------\n"
-                       "*** UART port initialization successful !!! ***\n"
-                       "-----------------------------------------------------------\n";
+  /*Inicializar el objeto SPS30 con el manejador de UART*/
 
-        HAL_UART_Transmit(&huart3, (uint8_t *)message, strlen((char *)message), HAL_MAX_DELAY);
+  SPS30_init(&sps30, &huart5);
+  UART_Printing_init(&uart_logger, &huart3);
 
-        uart.print(&uart, "\n*********************************************\n");
-        uart.print(&uart, "WAKE UP :\n");
-        sps30.wake_up(&sps30);
+
+  /* Initialize RTC */
+
+  uart_logger.print(&uart, "Inicializando RTC DS3231...\n");
+  //time_rtc_Init(&hi2c2);
+
+
+
+  /* Initialization welcome message */
+  uart_logger.print(&uart, "\n\n-----------------------------------------------------------\n");
+  uart_logger.print(&uart, "*** Sistema de Monitoreo de Material Particulado ***\n");
+  uart_logger.print(&uart, "-----------------------------------------------------------\n");
+
+
+
+
+
+  /* Initialize RTC */
+  uart_logger.print(&uart_logger, "Inicializando RTC DS1307...\n");
+  //time_rtc_Init(&hi2c2);
+
+   /*Despierta al sensor SPS30*/
+   sps30.wake_up(&sps30);
+   uart_logger.print(&uart_logger, "WAKE UP :\n");
+
+
+   /* Initialize data logger */
+     uart_logger.print(&uart_logger, "Inicializando sistema de almacenamiento de datos...\n");
+     if (!data_logger_init()) {
+         uart_logger.print(&uart_logger, "¡Error al inicializar el sistema de almacenamiento!\n");
+     }
+
+     /* Initialize SPS30 sensors array */
+     uart_logger.print(&uart_logger, "Inicializando sensores SPS30...\n");
+     inicializar_sensores_sps30();
+
+   /* Buffer de Mensajes */
+
+   char datetime_buffer[32];
+   char msg_buffer[128];
+   uint32_t ciclo_contador = 0;
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+   RTC_ReceiveTimeFromTerminal(&huart3);
     while (1) {
 
-    	  for (int i = 0; i < sensores_disponibles; i++) {
-    	      proceso_observador(&sensores_sps30[i].sensor, &uart, sensores_sps30[i].id);
-    	  }
+    	  /* Get current date and time */
+    	        time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
 
+    	        /* Format header message with timestamp and cycle counter */
+    	        snprintf(msg_buffer, sizeof(msg_buffer),
+    	                "\n=== Ciclo de medición #%lu: %s ===\n",
+    	                ++ciclo_contador, datetime_buffer);
+    	        uart_logger.print(&uart_logger, msg_buffer);
 
+    	        /* Read all available sensors */
+    	        for (int i = 0; i < sensores_disponibles; i++) {
+    	            if (proceso_observador(&sensores_sps30[i].sensor, &uart_logger, sensores_sps30[i].id)) {
+    	                /* Get the last measurement data and store it */
+    	                ConcentracionesPM valores = sensores_sps30[i].sensor.get_concentrations(&sensores_sps30[i].sensor);
+    	                data_logger_store_measurement(sensores_sps30[i].id, valores, -999.0f, -999.0f);
+    	            }
+    	        }
 
+    	        /* Print data summary every 10 cycles */
+    	        if (ciclo_contador % 10 == 0) {
+    	            data_logger_print_summary(&uart_logger);
+
+    	            /* Print average PM2.5 of all sensors */
+    	            float pm25_avg = data_logger_get_average_pm25(0, 10);
+    	            snprintf(msg_buffer, sizeof(msg_buffer),
+    	                    "Promedio PM2.5 (últimas 10 mediciones): %.2f ug/m3\n", pm25_avg);
+    	            uart_logger.print(&uart_logger, msg_buffer);
+    	        }
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-    	/*
-    	  uart.print(&uart, "\n*********************************************\n");
-    	        uart.print(&uart, "START MEASUREMENT:\n");
-    	        sps30.start_measurement(&sps30);
-
-    	        HAL_Delay(2500);
-
-    	        uart.print(&uart, "\n*********************************************\n");
-    	        uart.print(&uart, "READ DATA 1:\n");
-    	        //sps30.read_data(&sps30);
-
-
-    	        ConcentracionesPM datos = sps30.get_concentrations(&sps30);
-
-    	        char buffer[128];
-    	        snprintf(buffer, sizeof(buffer),
-    	                 "PM1.0 : %.2f ug/m3\n"
-    	                 "PM2.5 : %.2f ug/m3\n"
-    	                 "PM4.0 : %.2f ug/m3\n"
-    	                 "PM10  : %.2f ug/m3\n",
-    	                 datos.pm1_0,
-    	                 datos.pm2_5,
-    	                 datos.pm4_0,
-    	                 datos.pm10);
-
-    	        uart.print(&uart, buffer);
-
-    	        HAL_Delay(1000);
-
-    	        uart.print(&uart, "\n*********************************************\n");
-    	        uart.print(&uart, "SERIAL NUMBER:\n");
-    	        sps30.serial_number(&sps30);
-
-    	        HAL_Delay(100);
-
-    	        uart.print(&uart, "\n*********************************************\n");
-    	        uart.print(&uart, "STOP MEASUREMENT:\n");
-    	        sps30.stop_measurement(&sps30);
-
-    	        HAL_Delay(100);
-
-    	        uart.print(&uart, "\n*********************************************\n");
-    	        uart.print(&uart, "SLEEP :\n");
-    	        sps30.sleep(&sps30);
-
-    	        HAL_Delay(4000); // Espera 10 segundos antes de la próxima lectura
-
-    	        uart.print(&uart, "\n*********************************************\n");
-    	        uart.print(&uart, "WAKE UP :\n");
-    	        sps30.wake_up(&sps30);
-  */
 
         HAL_Delay(10000); // Espera 10 segundos antes de la próxima lectura
     }
@@ -249,6 +267,9 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+
+
 
 /* USER CODE END 4 */
 

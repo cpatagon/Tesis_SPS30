@@ -1,0 +1,15 @@
+rtc_ds3231_for_stm32_hal.c:38:6:DS3231_Init	1
+rtc_ds3231_for_stm32_hal.c:42:6:DS3231_IsConnected	1
+rtc_ds3231_for_stm32_hal.c:46:9:DS3231_GetRegByte	1
+rtc_ds3231_for_stm32_hal.c:53:6:DS3231_SetRegByte	1
+rtc_ds3231_for_stm32_hal.c:58:9:DS3231_DecodeBCD	1
+rtc_ds3231_for_stm32_hal.c:62:9:DS3231_EncodeBCD	1
+rtc_ds3231_for_stm32_hal.c:66:6:DS3231_GetDateTime	7
+rtc_ds3231_for_stm32_hal.c:97:6:DS3231_SetDateTime	2
+rtc_ds3231_for_stm32_hal.c:125:7:DS3231_GetTemperature	1
+rtc_ds3231_for_stm32_hal.c:131:6:rtc_get_time	1
+rtc_ds3231_for_stm32_hal.c:155:6:rtc_set_time_from_uart	16
+rtc_ds3231_for_stm32_hal.c:234:6:rtc_set_test_time	1
+rtc_ds3231_for_stm32_hal.c:284:17:rtc_get_compile_time	5
+rtc_ds3231_for_stm32_hal.c:318:6:RTC_DS3231_Set	2
+rtc_ds3231_for_stm32_hal.c:338:6:RTC_DS3231_Get	2
