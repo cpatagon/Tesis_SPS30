@@ -31,10 +31,26 @@
  */
 
 #include "time_rtc.h"
-#include "rtc_ds1307_for_stm32_hal.h"
+#include "rtc_buildtime.h"
+//#include "rtc_ds1307_for_stm32_hal.h"
+#include "rtc_ds3231_for_stm32_hal.h"
 #include "rtc.h"  // HAL RTC interno
+#include "rtc_buildtime.h"
+#include "usart.h"
+#include "uart_printing.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
+
+#define UART_BUFFER_SIZE 64
+
+
+extern I2C_HandleTypeDef hi2c2;
+
+extern UART_HandleTypeDef huart3;
+extern UART_HandleTypeDef huart1;
 
 RTC_Source active_rtc = RTC_SOURCE_INTERNAL;  // Por defecto
 
@@ -42,43 +58,138 @@ RTC_Source active_rtc = RTC_SOURCE_INTERNAL;  // Por defecto
  * @brief Verifica si el RTC externo responde por I2C
  */
 static bool rtc_external_available(void) {
-    return (HAL_I2C_IsDeviceReady(&hi2c2, DS1307_ADDRESS << 1, 3, 100) == HAL_OK);
+    return (HAL_I2C_IsDeviceReady(&hi2c2, DS3231_I2C_ADDR << 1, 3, 100) == HAL_OK);
 }
 
+
 /**
- * @brief Inicializa automáticamente el RTC disponible (externo si responde, interno si no)
+ * @brief Inicializa automáticamente el RTC (externo o interno), y si está habilitado,
+ *        configura la hora con el timestamp de compilación en caso de ser necesario.
  */
 void rtc_auto_init(void) {
+
     if (rtc_external_available()) {
-    	DS1307_Init(&hi2c2);
+        DS3231_Init(&hi2c2);
         active_rtc = RTC_SOURCE_EXTERNAL;
+
+#if RTC_USE_BUILD_TIME_IF_NO_SOURCE
+        DS3231_DateTime now;
+        DS3231_GetDateTime(&now);
+
+        // Si la hora no es válida, usar hora de compilación
+        if (now.year < 2023 || now.year > 2099) {
+            uart_logger.print(&uart_logger, "[RTC] Hora no válida. Usando hora de compilación.\r\n");
+
+            DS3231_DateTime build_time = rtc_get_compile_time();
+            DS3231_SetDateTime(&build_time);
+        }
+#endif
+
     } else {
-        MX_RTC_Init();
-        active_rtc = RTC_SOURCE_INTERNAL;
-    }
-}
+           MX_RTC_Init(); // RTC interno
+           active_rtc = RTC_SOURCE_INTERNAL;
+
+           // Puedes agregar lógica similar aquí si quieres aplicar fallback también al RTC interno.
+       }
+   }
+
+
 
 /**
- * @brief Obtiene fecha y hora del RTC activo en formato ISO8601
- * @param buffer Buffer donde se escribirá la cadena de fecha
- * @param len Tamaño del buffer
+ * @brief Solicita fecha y hora por terminal UART y actualiza el RTC.
+ *
+ * Esta función permite al usuario ingresar manualmente la fecha y hora
+ * en formato `YYYYMMDDHHMMSS;` a través de la UART (terminal). Una vez
+ * recibida la cadena completa, se procesa para actualizar el reloj en tiempo real (RTC).
+ *
+ * Requiere que `rtc_set_time_from_uart()` esté implementada para interpretar
+ * la cadena y establecer la hora del RTC.
+ *
+ * El usuario debe terminar la entrada con un punto y coma `;`.
+ * Se hace eco de cada carácter recibido para confirmación por el terminal.
+ *
+ * @note UART3 se utiliza para recibir datos y UART1 para eco de salida.
+ * @note Utiliza uart_logger para mostrar instrucciones al usuario.
  */
-void rtc_get_time(char *buffer, size_t len) {
-    if (active_rtc == RTC_SOURCE_EXTERNAL) {
-        DS1307_DateTime dt;
-        DS1307_GetTime(&dt);
-        snprintf(buffer, len, "%04d-%02d-%02d %02d:%02d:%02d",
-                 dt.year, dt.month, dt.day,
-                 dt.hours, dt.minutes, dt.seconds);
-    } else {
-        RTC_TimeTypeDef sTime;
-        RTC_DateTypeDef sDate;
-        HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
-        HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-        snprintf(buffer, len, "20%02d-%02d-%02d %02d:%02d:%02d",
-                 sDate.Year, sDate.Month, sDate.Date,
-                 sTime.Hours, sTime.Minutes, sTime.Seconds);
+bool RTC_ReceiveTimeFromTerminal(UART_HandleTypeDef *huart)
+{
+    char rx_buffer[32] = {0};
+    char debug_buf[128];
+    uint16_t year;
+
+    HAL_StatusTypeDef status;
+    uint32_t start_tick = HAL_GetTick();
+    uint8_t idx = 0;
+
+    uart_print_debug(huart, "Ingrese fecha y hora [YYYYMMDDHHMMSS;]:\r\n");
+
+    while ((HAL_GetTick() - start_tick) < 30000) {
+        uint8_t ch;
+        status = HAL_UART_Receive(huart, &ch, 1, 100);
+        if (status == HAL_OK) {
+            if (ch == ';') {
+                rx_buffer[idx] = '\0';
+                break;
+            }
+            if (idx < sizeof(rx_buffer) - 1) {
+                rx_buffer[idx++] = ch;
+            }
+        }
     }
+
+    if (idx < 14) {
+        uart_print_debug(huart, "Tiempo expirado o entrada incompleta. Se mantiene hora RTC actual.\r\n");
+        return false;
+    }
+
+    snprintf(debug_buf, sizeof(debug_buf), "[DEBUG] Entrada recibida: %s\r\n", rx_buffer);
+    uart_print_debug(huart, debug_buf);
+
+    // Limpiar caracteres como '\r', '\n' o ';'
+    rx_buffer[strcspn(rx_buffer, "\r\n;")] = '\0';
+
+    // Parseo manual
+    char year_str[5] = {0}, month_str[3] = {0}, day_str[3] = {0};
+    char hour_str[3] = {0}, min_str[3] = {0}, sec_str[3] = {0};
+
+    strncpy(year_str,  rx_buffer +  0, 4);
+    strncpy(month_str, rx_buffer +  4, 2);
+    strncpy(day_str,   rx_buffer +  6, 2);
+    strncpy(hour_str,  rx_buffer +  8, 2);
+    strncpy(min_str,   rx_buffer + 10, 2);
+    strncpy(sec_str,   rx_buffer + 12, 2);
+
+    year = atoi(year_str);
+    RTC_DateTypeDef date = {0};
+    RTC_TimeTypeDef time = {0};
+
+    date.Month     = atoi(month_str);
+    date.Date      = atoi(day_str);
+    time.Hours     = atoi(hour_str);
+    time.Minutes   = atoi(min_str);
+    time.Seconds   = atoi(sec_str);
+
+    snprintf(debug_buf, sizeof(debug_buf),
+             "Fecha parseada: %04u-%02u-%02u %02u:%02u:%02u\r\n",
+             year, date.Month, date.Date,
+             time.Hours, time.Minutes, time.Seconds);
+    uart_print_debug(huart, debug_buf);
+
+    if (year < 2000 || year > 2099) {
+        uart_print_debug(huart, "Año fuera de rango\r\n");
+        return false;
+    }
+
+    date.Year = (uint8_t)(year - 2000);
+    date.WeekDay = 1;
+
+    if (!RTC_DS3231_Set(&date, &time)) {
+        uart_print_debug(huart, "Error al configurar el RTC.\r\n");
+        return false;
+    }
+
+    uart_print_debug(huart, "RTC actualizado exitosamente.\r\n");
+    return true;
 }
 
 /**
@@ -96,3 +207,10 @@ void time_rtc_Init(void) {
 void time_rtc_GetFormattedDateTime(char *buffer, size_t len) {
     rtc_get_time(buffer, len);
 }
+
+
+
+
+
+
+

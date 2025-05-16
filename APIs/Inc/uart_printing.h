@@ -33,10 +33,13 @@
 #include <stdint.h> // Para usar tipos de datos estándar
 #include "stm32f4xx_hal.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct UART_Printing UART_Printing;
 
-
-
+extern UART_Printing uart_logger;
 
 struct UART_Printing {
     UART_HandleTypeDef *huart;  // Manejador de UART
@@ -49,6 +52,12 @@ struct UART_Printing {
 // Prototipos de funciones para inicializar el objeto UART_Printing
 void UART_Printing_init(UART_Printing *self, UART_HandleTypeDef *huart);
 
+void uart_print_debug(UART_HandleTypeDef *huart, const char *msg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // INC_UART_PRINTING_H_
+
 
