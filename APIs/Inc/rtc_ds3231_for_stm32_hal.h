@@ -138,8 +138,6 @@ uint8_t DS3231_EncodeBCD(uint8_t dec);
  */
 void rtc_set_time_from_uart(const char *input_str);
 
-
-
 /**
  * @brief Establece una fecha/hora fija predefinida en el RTC para propósitos de prueba.
  *
@@ -148,12 +146,46 @@ void rtc_set_time_from_uart(const char *input_str);
  */
 void rtc_set_test_time(void);
 
-
+/**
+ * @brief Obtiene la fecha y hora de compilación del firmware.
+ *
+ * Esta función devuelve un objeto `DS3231_DateTime` con la fecha y hora
+ * en la que se compiló el firmware, utilizando macros como `__DATE__` y `__TIME__`.
+ * Es útil para inicializar el RTC con la fecha de firmware en ausencia de configuración previa.
+ *
+ * @return Estructura DS3231_DateTime con los valores extraídos de compilación.
+ */
 DS3231_DateTime rtc_get_compile_time(void);
 
 
+/**
+ * @brief Establece la fecha y hora en el RTC DS3231 utilizando estructuras HAL.
+ *
+ * Esta función convierte los valores desde las estructuras `RTC_DateTypeDef`
+ * y `RTC_TimeTypeDef` (formato HAL de STM32) a la estructura interna
+ * `DS3231_DateTime`, y luego los escribe en el RTC.
+ *
+ * @param[in] date Puntero a estructura HAL con la fecha.
+ * @param[in] time Puntero a estructura HAL con la hora.
+ *
+ * @retval true Si la operación de escritura fue exitosa.
+ * @retval false Si ocurrió un error al escribir en el RTC.
+ */
 bool RTC_DS3231_Set(RTC_DateTypeDef *date, RTC_TimeTypeDef *time);
 
+
+/**
+ * @brief Obtiene la fecha y hora actuales desde el RTC DS3231 en formato HAL.
+ *
+ * Esta función lee el RTC y llena las estructuras `RTC_DateTypeDef` y
+ * `RTC_TimeTypeDef` con los valores actuales del reloj en formato STM32 HAL.
+ *
+ * @param[out] date Puntero a estructura donde se guardará la fecha.
+ * @param[out] time Puntero a estructura donde se guardará la hora.
+ *
+ * @retval true Si la lectura fue exitosa.
+ * @retval false Si ocurrió un error al leer desde el RTC.
+ */
 bool RTC_DS3231_Get(RTC_DateTypeDef *date, RTC_TimeTypeDef *time);
 
 /* === End of documentation ==================================================================== */
