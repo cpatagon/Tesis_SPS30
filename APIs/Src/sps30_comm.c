@@ -1,10 +1,9 @@
 #include "sps30_comm.h"
-#include "uart_printing.h"
+#include "uart.h"
 #include "shdlc.h"
 #include <stdio.h>
 #include <string.h>
 
-extern UART_Printing uart;
 
 #define BUFFER_SIZE                  7
 #define BUFFER_SIZE_READ_DATA        60
@@ -179,7 +178,7 @@ void sps30_serial_number(SPS30 *self) {
     // Imprimir de forma legible
     char mensaje[64];
     snprintf(mensaje, sizeof(mensaje), "\nSerial Number: %s\n", serial);
-    uart.print(&uart, mensaje);
+    uart_print("%s", mensaje);
 }
 
 

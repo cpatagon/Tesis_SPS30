@@ -28,10 +28,11 @@
 
 /* === Headers files inclusions =============================================================== */
 
-
+#include "fatfs.h"
+#include "rtc.h"
 #include "data_logger.h"
 #include "time_rtc.h"
-#include "uart_printing.h"
+#include "uart.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -176,42 +177,81 @@ float data_logger_get_average_pm25(uint8_t sensor_id, uint32_t num_mediciones) {
     return (contador > 0) ? (suma / contador) : 0.0f;
 }
 
-void data_logger_print_summary(UART_Printing* uart) {
+void data_logger_print_summary() {
     char buffer[256];
 
     // Imprimir encabezado
     snprintf(buffer, sizeof(buffer),
-            "\n--- Resumen de Datos Almacenados ---\n"
-            "Buffer alta frecuencia: %lu/%lu muestras\n"
-            "Buffer horario: %lu/%lu muestras\n"
-            "Buffer diario: %lu/%lu muestras\n",
-            buffer_alta_frecuencia.cantidad, buffer_alta_frecuencia.capacidad,
-            buffer_hora.cantidad, buffer_hora.capacidad,
-            buffer_dia.cantidad, buffer_dia.capacidad);
+             "\n--- Resumen de Datos Almacenados ---\n"
+             "Buffer alta frecuencia: %lu/%lu muestras\n"
+             "Buffer horario: %lu/%lu muestras\n"
+             "Buffer diario: %lu/%lu muestras\n",
+             buffer_alta_frecuencia.cantidad, buffer_alta_frecuencia.capacidad,
+             buffer_hora.cantidad, buffer_hora.capacidad,
+             buffer_dia.cantidad, buffer_dia.capacidad);
 
-    uart->print(uart, buffer);
+    uart_print("%s", buffer);
 
     // Imprimir últimas mediciones si hay datos
     if (buffer_alta_frecuencia.cantidad > 0) {
-        uart->print(uart, "\nÚltimas 3 mediciones:\n");
+        uart_print("\nÚltimas 3 mediciones:\n");
 
         for (uint32_t i = 0; i < 3 && i < buffer_alta_frecuencia.cantidad; i++) {
             uint32_t indice = (buffer_alta_frecuencia.inicio +
-                             buffer_alta_frecuencia.cantidad - i - 1) %
-                             buffer_alta_frecuencia.capacidad;
+                               buffer_alta_frecuencia.cantidad - i - 1) %
+                               buffer_alta_frecuencia.capacidad;
 
             MedicionMP* medicion = &buffer_alta_frecuencia.datos[indice];
 
             snprintf(buffer, sizeof(buffer),
-                    "[%s] Sensor %d: PM2.5=%.2f ug/m3\n",
-                    medicion->timestamp,
-                    medicion->sensor_id,
-                    medicion->valores.pm2_5);
+                     "[%s] Sensor %d: PM2.5=%.2f ug/m3\n",
+                     medicion->timestamp,
+                     medicion->sensor_id,
+                     medicion->valores.pm2_5);
 
-            uart->print(uart, buffer);
+            uart_print("%s", buffer);
         }
     }
 }
+
+
+FRESULT guardar_promedio_csv(float pm1_0, float pm2_5, float pm4_0, float pm10, float temp, float hum) {
+    FIL archivo;
+    FRESULT res;
+    char nombre_archivo[64];
+    char linea[128];
+    char timestamp[32];
+
+    // Obtener fecha/hora actual para el nombre del archivo
+    time_rtc_GetFormattedDateTime(timestamp, sizeof(timestamp));
+    snprintf(nombre_archivo, sizeof(nombre_archivo), "/%s_avg10min.csv", timestamp);  // p.ej: /20250518T134000_avg10min.csv
+
+    // Abrir archivo en modo append o crear si no existe
+    res = f_open(&archivo, nombre_archivo, FA_OPEN_APPEND | FA_WRITE);
+    if (res != FR_OK) {
+        uart_print("Error abriendo archivo: %s\r\n", nombre_archivo);
+        return res;
+    }
+
+    // Formato: timestamp, PM1.0, PM2.5, PM4.0, PM10, Temp, Hum
+    snprintf(linea, sizeof(linea), "%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\r\n",
+             timestamp, pm1_0, pm2_5, pm4_0, pm10, temp, hum);
+
+    UINT escritos;
+    res = f_write(&archivo, linea, strlen(linea), &escritos);
+    f_sync(&archivo);
+    f_close(&archivo);
+
+    if (res == FR_OK && escritos > 0) {
+        uart_print("Promedio guardado: %s", linea);
+    } else {
+        uart_print("Error escribiendo promedio a SD\r\n");
+    }
+
+    return res;
+}
+
+
 
 
 

@@ -33,7 +33,8 @@
 #include "shdlc.h"  // Para acceder a ConcentracionesPM
 #include <stdint.h>
 #include <stdbool.h>
-#include "uart_printing.h"
+#include "uart.h"
+#include "ff.h"
 /* === Cabecera C++ ============================================================================ */
 #ifdef __cplusplus
 extern "C" {
@@ -48,6 +49,20 @@ extern "C" {
 
 
 /* === Public data type declarations =========================================================== */
+
+/**
+ * @brief Guarda una línea de promedio de concentraciones en la microSD.
+ *
+ * @param pm1_0  Promedio de PM1.0 en ug/m3
+ * @param pm2_5  Promedio de PM2.5 en ug/m3
+ * @param pm4_0  Promedio de PM4.0 en ug/m3
+ * @param pm10   Promedio de PM10 en ug/m3
+ * @param temp   Promedio de temperatura en °C
+ * @param hum    Promedio de humedad relativa en %
+ * @return FRESULT Código de resultado de la operación FatFs
+ */
+FRESULT guardar_promedio_csv(float pm1_0, float pm2_5, float pm4_0, float pm10, float temp, float hum);
+
 
 /**
  * @brief Estructura para almacenar una medición de material particulado
@@ -108,7 +123,7 @@ float data_logger_get_average_pm25(uint8_t sensor_id, uint32_t num_mediciones);
  *
  * @param uart Objeto UART para imprimir los datos
  */
-void data_logger_print_summary(UART_Printing* uart);
+void data_logger_print_summary(void);
 
 /* === End of documentation ==================================================================== */
 

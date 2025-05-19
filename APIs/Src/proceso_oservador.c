@@ -15,15 +15,15 @@
 #include <stdio.h>
 
 /* === Definición de funciones ============================================================= */
-bool proceso_observador(SPS30* sensor, UART_Printing* uart, uint8_t sensor_id) {
+bool proceso_observador(SPS30* sensor, uint8_t sensor_id) {
     // Obtener timestamp actual
     char datetime_buffer[32];
     time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
 
-    return proceso_observador_with_time(sensor, uart, sensor_id, datetime_buffer);
+    return proceso_observador_with_time(sensor,  sensor_id, datetime_buffer);
 }
 
-bool proceso_observador_with_time(SPS30* sensor, UART_Printing* uart, uint8_t sensor_id, const char* datetime_str) {
+bool proceso_observador_with_time(SPS30* sensor, uint8_t sensor_id, const char* datetime_str) {
     int reintentos = NUM_REINT;
 
     while (reintentos--) {
@@ -42,16 +42,16 @@ bool proceso_observador_with_time(SPS30* sensor, UART_Printing* uart, uint8_t se
             char buffer[BUFFER_SIZE_MSG_PM_FORMAT];
             snprintf(buffer, sizeof(buffer), MSG_PM_FORMAT_WITH_TIME,
                      datetime_str, sensor_id, pm.pm1_0, pm.pm2_5, pm.pm4_0, pm.pm10);
-            uart->print(uart, buffer);
+            uart_print("%s", buffer);
             return true;
         }
 
-        uart->print(uart, MSG_ERROR_REINT);
+        uart_print("%s", MSG_ERROR_REINT);
     }
 
     // Error con timestamp
     char error_msg[BUFFER_SIZE_MSG_ERROR_FALLO];
     snprintf(error_msg, sizeof(error_msg), MSG_ERROR_FALLO, datetime_str, sensor_id);
-    uart->print(uart, error_msg);
+    uart_print("%s", error_msg);
     return false;
 }

@@ -32,7 +32,7 @@
 
 #include <stdint.h>
 #include "stm32f4xx_hal.h"
-#include "uart_printing.h"
+#include "uart.h"
 #include "shdlc.h"
 
 /* === Cabecera C++ ============================================================================ */

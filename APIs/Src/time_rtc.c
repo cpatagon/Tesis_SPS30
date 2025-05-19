@@ -37,7 +37,7 @@
 #include "rtc.h"  // HAL RTC interno
 #include "rtc_buildtime.h"
 #include "usart.h"
-#include "uart_printing.h"
+#include "uart.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
@@ -121,7 +121,7 @@ bool RTC_ReceiveTimeFromTerminal(UART_HandleTypeDef *huart)
     uint32_t start_tick = HAL_GetTick();
     uint8_t idx = 0;
 
-    uart_print_debug(huart, "Ingrese fecha y hora [YYYYMMDDHHMMSS;]:\r\n");
+    uart_print("Ingrese fecha y hora [YYYYMMDDHHMMSS;]:\r\n");
 
     while ((HAL_GetTick() - start_tick) < 30000) {
         uint8_t ch;
@@ -138,12 +138,12 @@ bool RTC_ReceiveTimeFromTerminal(UART_HandleTypeDef *huart)
     }
 
     if (idx < 14) {
-        uart_print_debug(huart, "Tiempo expirado o entrada incompleta. Se mantiene hora RTC actual.\r\n");
+        uart_print("Tiempo expirado o entrada incompleta. Se mantiene hora RTC actual.\r\n");
         return false;
     }
 
     snprintf(debug_buf, sizeof(debug_buf), "[DEBUG] Entrada recibida: %s\r\n", rx_buffer);
-    uart_print_debug(huart, debug_buf);
+    uart_print(debug_buf);
 
     // Limpiar caracteres como '\r', '\n' o ';'
     rx_buffer[strcspn(rx_buffer, "\r\n;")] = '\0';
@@ -173,10 +173,10 @@ bool RTC_ReceiveTimeFromTerminal(UART_HandleTypeDef *huart)
              "Fecha parseada: %04u-%02u-%02u %02u:%02u:%02u\r\n",
              year, date.Month, date.Date,
              time.Hours, time.Minutes, time.Seconds);
-    uart_print_debug(huart, debug_buf);
+    uart_print(debug_buf);
 
     if (year < 2000 || year > 2099) {
-        uart_print_debug(huart, "Año fuera de rango\r\n");
+        uart_print("Año fuera de rango\r\n");
         return false;
     }
 
@@ -184,11 +184,11 @@ bool RTC_ReceiveTimeFromTerminal(UART_HandleTypeDef *huart)
     date.WeekDay = 1;
 
     if (!RTC_DS3231_Set(&date, &time)) {
-        uart_print_debug(huart, "Error al configurar el RTC.\r\n");
+        uart_print("Error al configurar el RTC.\r\n");
         return false;
     }
 
-    uart_print_debug(huart, "RTC actualizado exitosamente.\r\n");
+    uart_print("RTC actualizado exitosamente.\r\n");
     return true;
 }
 

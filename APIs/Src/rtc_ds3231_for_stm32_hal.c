@@ -25,7 +25,7 @@
 #include "rtc_config.h"
 #include "rtc_ds3231_for_stm32_hal.h"
 #include "time_rtc.h"
-#include "uart_printing.h"
+#include "uart.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -116,7 +116,7 @@ bool DS3231_SetDateTime(const DS3231_DateTime *dt) {
     );
 
     if (status != HAL_OK) {
-        uart_logger.print(&uart_logger, "[RTC] Error al escribir en DS3231\r\n");
+    	uart_print("[RTC] Error al escribir en DS3231\r\n");
         return false;
     }
     return true;
@@ -159,13 +159,13 @@ void rtc_set_time_from_uart(const char *input_str) {
     // Limpieza del string: verificar longitud y que todos sean dígitos
     size_t len = strlen(input_str);
     if (len != 14) {
-        uart_logger.print(&uart_logger, "[ERROR] Longitud incorrecta. Debe tener 14 dígitos (YYYYMMDDHHMMSS).\r\n");
+        uart_print("[ERROR] Longitud incorrecta. Debe tener 14 dígitos (YYYYMMDDHHMMSS).\r\n");
         return;
     }
 
     for (size_t i = 0; i < len; ++i) {
         if (!isdigit((unsigned char)input_str[i])) {
-            uart_logger.print(&uart_logger, "[ERROR] El string contiene caracteres no numéricos.\r\n");
+            uart_print("[ERROR] El string contiene caracteres no numéricos.\r\n");
             return;
         }
     }
@@ -182,8 +182,8 @@ void rtc_set_time_from_uart(const char *input_str) {
 
     if (parsed != 6) {
         snprintf(debug_buf, sizeof(debug_buf), "[ERROR] sscanf falló. Valores parseados: %d\r\n", parsed);
-        uart_logger.print(&uart_logger, debug_buf);
-        uart_logger.print(&uart_logger, RTC_MSG_PARSE_ERROR);
+        uart_print(debug_buf);
+        uart_print(RTC_MSG_PARSE_ERROR);
         return;
     }
 
@@ -197,8 +197,8 @@ void rtc_set_time_from_uart(const char *input_str) {
 
     if (parsed != 6) {
         snprintf(debug_buf, sizeof(debug_buf), "[ERROR] sscanf falló. Valores parseados: %d\r\n", parsed);
-        uart_logger.print(&uart_logger, debug_buf);
-        uart_logger.print(&uart_logger, RTC_MSG_PARSE_ERROR);
+        uart_print(debug_buf);
+        uart_print(RTC_MSG_PARSE_ERROR);
         return;
     }
 
@@ -211,7 +211,7 @@ void rtc_set_time_from_uart(const char *input_str) {
 #if RTC_DEBUG_ENABLED
         snprintf(debug_buf, sizeof(debug_buf), RTC_MSG_DATE_INVALID,
                  dt.year, dt.month, dt.day, dt.hours, dt.minutes, dt.seconds);
-        uart_logger.print(&uart_logger, debug_buf);
+        uart_print(debug_buf);
 #endif
         return;
     }
@@ -219,14 +219,14 @@ void rtc_set_time_from_uart(const char *input_str) {
 #if RTC_DEBUG_ENABLED
     snprintf(debug_buf, sizeof(debug_buf), RTC_MSG_DATE_PARSED,
              dt.year, dt.month, dt.day, dt.hours, dt.minutes, dt.seconds);
-    uart_logger.print(&uart_logger, debug_buf);
+    uart_print(debug_buf);
 #endif
 
     // Actualizar RTC
     if (DS3231_SetDateTime(&dt)) {
-        uart_logger.print(&uart_logger, RTC_MSG_SET_SUCCESS);
+        uart_print(RTC_MSG_SET_SUCCESS);
     } else {
-        uart_logger.print(&uart_logger, RTC_MSG_SET_FAIL);
+        uart_(RTC_MSG_SET_FAIL);
     }
 }
 
@@ -244,10 +244,10 @@ void rtc_set_test_time(void) {
 
     dt = rtc_get_compile_time();
 
-    uart_logger.print(&uart_logger, "[TEST] Intentando configurar RTC con fecha fija...\r\n");
+    uart_print("[TEST] Intentando configurar RTC con fecha fija...\r\n");
 
     if (DS3231_SetDateTime(&dt)) {
-        uart_logger.print(&uart_logger, "[TEST] RTC configurado con exito.\r\n");
+        uart_print("[TEST] RTC configurado con exito.\r\n");
 
         DS3231_DateTime verif;
         DS3231_GetDateTime(&verif);
@@ -257,7 +257,7 @@ void rtc_set_test_time(void) {
                  "[TEST] Verificacion: %04d-%02d-%02d %02d:%02d:%02d\r\n",
                  verif.year, verif.month, verif.day,
                  verif.hours, verif.minutes, verif.seconds);
-        uart_logger.print(&uart_logger, buffer);
+        uart_print(buffer);
 
 
         verif = rtc_get_compile_time();
@@ -266,11 +266,11 @@ void rtc_set_test_time(void) {
                       "[TEST] Verificacion fecha compilacion: %04d-%02d-%02d %02d:%02d:%02d\r\n",
                       verif.year, verif.month, verif.day,
                       verif.hours, verif.minutes, verif.seconds);
-             uart_logger.print(&uart_logger, buffer);
+             uart_print(buffer);
 
 
     } else {
-        uart_logger.print(&uart_logger, "[TEST] Error al configurar RTC.\r\n");
+        uart_print("[TEST] Error al configurar RTC.\r\n");
     }
 #endif
 }
@@ -329,7 +329,7 @@ bool RTC_DS3231_Set(RTC_DateTypeDef *date, RTC_TimeTypeDef *time)
     bool resultado = DS3231_SetDateTime(&dt);
 
     if (!resultado) {
-        uart_print_debug(&huart3, "Error al escribir al DS3231\r\n");
+    	uart_print("Error al escribir al DS3231\r\n");
     }
 
     return resultado;
@@ -340,7 +340,7 @@ bool RTC_DS3231_Get(RTC_DateTypeDef *date, RTC_TimeTypeDef *time)
     DS3231_DateTime dt;
 
     if (!DS3231_GetDateTime(&dt)) {
-        uart_print_debug(&huart3, "Error al leer desde el DS3231\r\n");
+        uart_print("Error al leer desde el DS3231\r\n");
         return false;
     }
 

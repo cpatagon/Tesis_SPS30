@@ -1,0 +1,11 @@
+microSD.c:98:13:send_uart	1
+microSD.c:103:13:get_fresult_message	20
+microSD.c:130:6:log_error	2
+microSD.c:142:10:microSD_create	3
+microSD.c:159:6:microSD_destroy	3
+microSD.c:171:6:microSD_setDirectory	1
+microSD.c:180:6:microSD_getSize	2
+microSD.c:205:6:microSD_write	3
+microSD.c:218:6:microSD_read	2
+microSD.c:232:6:microSD_appendLine	3
+microSD.c:247:6:bufclear	2

@@ -1,0 +1,5 @@
+uart.c:67:6:uart_print	2
+uart.c:83:6:uart_vector_print	3
+uart.c:98:6:uart_send_command	1
+uart.c:103:6:uart_receive_async	1
+uart.c:107:6:uart_send_receive	1

@@ -31,7 +31,7 @@
 
 /* === Inclusión de archivos ================================================================ */
 #include "sps30_comm.h"
-#include "uart_printing.h"
+#include "uart.h"
 #include "time_rtc.h"
 #include <stdbool.h>
 
@@ -69,7 +69,7 @@ extern "C" {
  * @param sensor_id Número identificador del sensor (ej. 1, 2, 3)
  * @return true si la adquisición fue exitosa; false si falló tras reintentos
  */
-bool proceso_observador(SPS30* sensor, UART_Printing* uart, uint8_t sensor_id);
+bool proceso_observador(SPS30* sensor,  uint8_t sensor_id);
 
 /**
  * @brief Ejecuta una adquisición desde un sensor SPS30 y guarda los datos con timestamp
@@ -80,7 +80,7 @@ bool proceso_observador(SPS30* sensor, UART_Printing* uart, uint8_t sensor_id);
  * @param datetime_str Cadena con la fecha y hora de la medición
  * @return true si la adquisición fue exitosa; false si falló tras reintentos
  */
-bool proceso_observador_with_time(SPS30* sensor, UART_Printing* uart, uint8_t sensor_id, const char* datetime_str);
+bool proceso_observador_with_time(SPS30* sensor, uint8_t sensor_id, const char* datetime_str);
 
 
 /* === Fin de cabecera C++ ================================================================ */
