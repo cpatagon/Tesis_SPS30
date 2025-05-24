@@ -36,6 +36,10 @@
 #include "data_logger.h"
 #include "time_rtc.h"
 #include "rtc_ds3231_for_stm32_hal.h"
+#include "fatfs_sd.h"
+#include "microSD.h"
+
+#include "test_format_csv.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,7 +50,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define UART_BUFFER_SIZE 64
+//#define UART_BUFFER_SIZE 64
 
 
 /* USER CODE END PD */
@@ -62,7 +66,10 @@
 
 // Declaración del objeto SPS30
 SPS30 sps30;
-extern UART_HandleTypeDef *uart_debug;
+//extern UART_HandleTypeDef *uart_debug;
+
+
+//extern void test_format_csv_line(void);
 
 
 /* USER CODE END PV */
@@ -86,7 +93,8 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 
-	uart_debug = &huart3;
+
+
 
 
   /* USER CODE END 1 */
@@ -121,31 +129,68 @@ int main(void)
   MX_SPI1_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
+ // debug_sd_init();
+
+/*
+  HAL_Delay(200);
+  //probar_spi_sd();           // <== Esto
+
+  uart_print("Inicializando sistema de almacenamiento de datos 1...\n");
+*/
+
+	uart_debug = &huart3;
+
+  // Crea una nueva instancia de MicroSD
+      MicroSD *sd = microSD_create(&huart3, "prueba3.txt", "/"); // Inicialización con el directorio raíz
+      uart_print("Inicializando sistema de almacenamiento de datos 1A ...\n");
+      if (sd == NULL) {
+          // Manejar error de creación
+          Error_Handler();
+      }
+      uart_print("fin Inicializando sistema de almacenamiento de datos 4...\n");
+  microSD_setDirectory(sd, "/"); // Cambia el directorio según sea necesario
+
+  uart_print("Inicializando sistema de almacenamiento de datos 3 ...\n");
+  if (!data_logger_init()) {
+      uart_print("¡Error al inicializar el sistema de almacenamiento!\n");
+  }
+
+
+  HAL_Delay(200);
 
   /* Inicializar sensores SPS30 disponibles*/
+
   rtc_auto_init();    // Detecta y configura el RTC correcto
 
-  rtc_set_test_time(); // <- llamada de prueba
+  test_format_csv_line();
+
+  RTC_ReceiveTimeFromTerminal(&huart3);
+
+  // rtc_set_test_time(); // <- llamada de prueba
+
+  /*TEST*/
+
 
 
   //char fecha_hora[32];
   //obtener_fecha_hora(fecha_hora);
  //uart_printf("Fecha y hora actual: %s\r\n", fecha_hora);
 
+ /*
   inicializar_sensores_sps30();
-
+*/
 
 
 
   /*Inicializar el objeto SPS30 con el manejador de UART*/
-
+/*
   SPS30_init(&sps30, &huart5);
-
+*/
 
 
   /* Initialize RTC */
 
-  uart_print("Inicializando RTC DS3231...\n");
+//  uart_print("Inicializando RTC DS3231...\n");
   //time_rtc_Init(&hi2c2);
 
 
@@ -160,7 +205,7 @@ int main(void)
 
 
   /* Initialize RTC */
-  uart_print("Inicializando RTC DS1307...\n");
+//  uart_print("Inicializando RTC DS1307...\n");
   //time_rtc_Init(&hi2c2);
 
    /*Despierta al sensor SPS30*/
@@ -169,12 +214,28 @@ int main(void)
 
 
    /* Initialize data logger */
-     uart_print("Inicializando sistema de almacenamiento de datos...\n");
+//     uart_print("Inicializando sistema de almacenamiento de datos...\n");
+
      if (!data_logger_init()) {
          uart_print("¡Error al inicializar el sistema de almacenamiento!\n");
      }
+     else{
+    	 ParticulateData test_data = {
+    	     .timestamp = "2025-05-22T20:30:00Z",
+    	     .sensor_id = 1,
+    	     .pm1_0 = 3.2,
+    	     .pm2_5 = 5.6,
+    	     .pm4_0 = 6.7,
+    	     .pm10  = 7.2,
+    	     .temp  = 23.4,
+    	     .hum   = 42.1
+    	 };
+
+         data_logger_write_csv_line(&test_data);
+     }
 
      /* Initialize SPS30 sensors array */
+
      uart_print("Inicializando sensores SPS30...\n");
      inicializar_sensores_sps30();
 
@@ -183,16 +244,26 @@ int main(void)
    char datetime_buffer[32];
    char msg_buffer[128];
    uint32_t ciclo_contador = 0;
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-   RTC_ReceiveTimeFromTerminal(&huart3);
+  int contador = 1;
+  char buffer[100];
+  RTC_ReceiveTimeFromTerminal(&huart3);
     while (1) {
 
+    	/*TEST*/
+    	 snprintf(buffer, sizeof(buffer), "%d", contador);  // Convierte el contador a cadena
+    	    	  microSD_appendLine(sd, buffer);  // Escribe la cadena en el archivo
+    	    	  contador++;  // Incrementa el contador
+    	    	  HAL_Delay(5000);
+
+
+
+
     	  /* Get current date and time */
-    	        time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
+   	        time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
 
     	        /* Format header message with timestamp and cycle counter */
     	        snprintf(msg_buffer, sizeof(msg_buffer),
@@ -213,11 +284,14 @@ int main(void)
     	        if (ciclo_contador % 10 == 0) {
     	        	data_logger_print_summary();
 
+
     	            /* Print average PM2.5 of all sensors */
     	            float pm25_avg = data_logger_get_average_pm25(0, 10);
     	            snprintf(msg_buffer, sizeof(msg_buffer),
-    	                    "Promedio PM2.5 (últimas 10 mediciones): %.2f ug/m3\n", pm25_avg);
+    	                    "Promedio PM2.5 (ultimas 10 mediciones): %.2f ug/m3\n", pm25_avg);
     	            uart_print(msg_buffer);
+
+
     	        }
 
     /* USER CODE END WHILE */
@@ -226,6 +300,8 @@ int main(void)
 
         HAL_Delay(10000); // Espera 10 segundos antes de la próxima lectura
     }
+
+
   /* USER CODE END 3 */
 }
 

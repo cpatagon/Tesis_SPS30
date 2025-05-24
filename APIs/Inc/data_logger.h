@@ -48,6 +48,8 @@ extern "C" {
 #define BUFFER_DAILY_SIZE     30  // 30 muestras = 1 mes
 
 
+#define CSV_LINE_BUFFER_SIZE 128
+
 /* === Public data type declarations =========================================================== */
 
 /**
@@ -85,6 +87,17 @@ typedef struct {
     uint32_t cantidad;          // Cantidad actual de elementos
 } BufferCircular;
 
+
+typedef struct {
+    char timestamp[25]; // "2025-05-21T21:30:00Z"
+    int sensor_id;
+    float pm1_0;
+    float pm2_5;
+    float pm4_0;
+    float pm10;
+    float temp;
+    float hum;
+} ParticulateData;
 
 /* === Public variable declarations ============================================================ */
 
@@ -124,6 +137,27 @@ float data_logger_get_average_pm25(uint8_t sensor_id, uint32_t num_mediciones);
  * @param uart Objeto UART para imprimir los datos
  */
 void data_logger_print_summary(void);
+
+
+/**
+ * @brief Formatea una estructura de datos como línea CSV
+ *
+ * @param data Puntero a estructura con los datos
+ * @param csv_line Cadena de salida donde se almacenará la línea CSV
+ * @param max_len Tamaño máximo del búfer de salida
+ * @return true si el formateo fue exitoso, false si hubo error de espacio
+ */
+bool format_csv_line(const ParticulateData *data, char *csv_line, size_t max_len);
+
+
+bool build_csv_filepath_from_datetime(char *filepath, size_t max_len);
+
+bool log_data_to_sd(const ParticulateData *data);
+
+void print_fatfs_error(FRESULT res);
+
+bool data_logger_write_csv_line(const ParticulateData *data);
+
 
 /* === End of documentation ==================================================================== */
 

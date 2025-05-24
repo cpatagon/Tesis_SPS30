@@ -50,3 +50,4 @@ DRESULT SD_disk_write (BYTE pdrv, const BYTE* buff, DWORD sector, UINT count);
 DRESULT SD_disk_ioctl (BYTE pdrv, BYTE cmd, void* buff);
 
 #endif
+

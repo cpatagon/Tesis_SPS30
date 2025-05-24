@@ -73,5 +73,8 @@ void uart_receive_async(uint8_t *dataBuffer, uint16_t bufferSize);
 
 void uart_send_receive(const uint8_t *command, uint16_t commandSize, uint8_t *dataBuffer, uint16_t bufferSize);
 
+
+void probar_spi_sd(void);
+
 #endif /* INC_UART_H_ */
 

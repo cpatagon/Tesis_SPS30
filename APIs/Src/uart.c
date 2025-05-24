@@ -44,6 +44,7 @@
 // Aquí puedes declarar variables que solo se utilizan en este módulo.
 
 extern UART_HandleTypeDef huart3; // Asume que huart3 está definido en otro lugar.
+extern SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef *uart_debug = NULL;
 
 /* === Declaraciones de funciones privadas ===================================================== */
@@ -108,6 +109,24 @@ void uart_send_receive(const uint8_t *command, uint16_t commandSize, uint8_t *da
     HAL_UART_Transmit(&huart5, command, commandSize, 100);
     HAL_UART_Receive(&huart5, dataBuffer, bufferSize,100);
 }
+
+
+void probar_spi_sd(void)
+{
+    uint8_t tx = 0xFF;
+    uint8_t rx = 0x00;
+
+    uart_print("Probando SPI con microSD...\r\n");
+
+    HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);
+    HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1, HAL_MAX_DELAY);
+    HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
+
+    char msg[64];
+    snprintf(msg, sizeof(msg), "Respuesta SPI de SD: 0x%02X\r\n", rx);
+    uart_print(msg);
+}
+
 
 
 

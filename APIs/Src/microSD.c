@@ -39,8 +39,12 @@
 #include <stdlib.h>
 #include "fatfs.h"
 #include "usart.h"
+#include "spi.h"
+#include "uart.h"
 
 /* === Macros definitions ====================================================================== */
+
+extern SPI_HandleTypeDef hspi1;
 
 #define SAFE_STRCPY(dest, src, size) do { \
     strncpy((dest), (src), (size) - 1); \
@@ -142,6 +146,7 @@ void log_error(MicroSD *sd, const char *error_message) {
 MicroSD* microSD_create(UART_HandleTypeDef *huart, const char *filename, const char *directory) {
     MicroSD *sd = (MicroSD*)malloc(sizeof(MicroSD));
     if (sd == NULL) {
+        uart_print("❌ Error: no se pudo asignar memoria para MicroSD.\n");
         return NULL;
     }
 
@@ -149,10 +154,34 @@ MicroSD* microSD_create(UART_HandleTypeDef *huart, const char *filename, const c
     SAFE_STRCPY(sd->filename, filename, sizeof(sd->filename));
     SAFE_STRCPY(sd->directory, directory, sizeof(sd->directory));
 
-    sd->fresult = f_mount(&sd->fs, sd->directory, 1);
-    CHECK_ERROR(sd->fresult, sd, MOUNT_FAILURE);
+    // Verificar si el directorio es válido
+    const char *mount_path = (directory == NULL || strlen(directory) == 0) ? "" : sd->directory;
 
+    sd->fresult = f_mount(&sd->fs, mount_path, 1);
+    if (sd->fresult == FR_OK) {
+        uart_print("✅ SD montada correctamente.\n");
+
+        // ⚡ Acelera SPI después del montaje exitoso
+        HAL_SPI_DeInit(&hspi1);
+        hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
+        HAL_SPI_Init(&hspi1);
+        uart_print("⚡ SPI acelerado a prescaler 8.\n");
+
+        // Cambiar unidad lógica actual si es necesario
+      //  f_chdrive(mount_path);
+    } else {
+        char msg[64];
+        sprintf(msg, "❌ Error al montar la SD (f_mount): %d\n", sd->fresult);
+        uart_print(msg);
+
+        // Liberar memoria y retornar NULL
+        free(sd);
+        return NULL;
+    }
+
+    // Señal de éxito por UART
     SEND_UART(sd, MOUNT_SUCCESS);
+
     return sd;
 }
 

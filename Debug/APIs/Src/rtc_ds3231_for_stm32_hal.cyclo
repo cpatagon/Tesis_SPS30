@@ -10,6 +10,9 @@ rtc_ds3231_for_stm32_hal.c:125:7:DS3231_GetTemperature	1
 rtc_ds3231_for_stm32_hal.c:131:6:rtc_get_time	1
 rtc_ds3231_for_stm32_hal.c:155:6:rtc_set_time_from_uart	16
 rtc_ds3231_for_stm32_hal.c:234:6:rtc_set_test_time	1
-rtc_ds3231_for_stm32_hal.c:284:17:rtc_get_compile_time	5
-rtc_ds3231_for_stm32_hal.c:318:6:RTC_DS3231_Set	2
-rtc_ds3231_for_stm32_hal.c:338:6:RTC_DS3231_Get	2
+rtc_ds3231_for_stm32_hal.c:280:17:rtc_get_compile_time	5
+rtc_ds3231_for_stm32_hal.c:321:6:RTC_DS3231_Set	2
+rtc_ds3231_for_stm32_hal.c:341:6:RTC_DS3231_Get	2
+rtc_ds3231_for_stm32_hal.c:364:6:ds3231_get_time	5
+rtc_ds3231_for_stm32_hal.c:380:6:ds3231_get_date	5
+rtc_ds3231_for_stm32_hal.c:396:6:ds3231_get_datetime	2

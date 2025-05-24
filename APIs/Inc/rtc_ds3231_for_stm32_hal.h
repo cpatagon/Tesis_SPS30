@@ -67,6 +67,16 @@ typedef struct {
     uint8_t month;    /**< Mes (1–12) */
     uint16_t year;    /**< Año (e.g. 2025) */
 } DS3231_DateTime;
+
+
+typedef struct {
+    uint8_t hour;
+    uint8_t min;
+    uint8_t sec;
+    uint8_t day;
+    uint8_t month;
+    uint16_t year;
+} ds3231_time_t;
 /* === Public variable declarations ============================================================ */
 
 /* === Public function declarations ============================================================ */
@@ -187,6 +197,16 @@ bool RTC_DS3231_Set(RTC_DateTypeDef *date, RTC_TimeTypeDef *time);
  * @retval false Si ocurrió un error al leer desde el RTC.
  */
 bool RTC_DS3231_Get(RTC_DateTypeDef *date, RTC_TimeTypeDef *time);
+
+
+bool ds3231_get_time(uint8_t *hour, uint8_t *min, uint8_t *sec);
+
+bool ds3231_get_date(uint8_t *day, uint8_t *month, uint16_t *year);
+
+bool ds3231_get_datetime(ds3231_time_t *dt);
+
+
+
 
 /* === End of documentation ==================================================================== */
 

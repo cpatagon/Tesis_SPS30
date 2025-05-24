@@ -116,7 +116,7 @@ bool DS3231_SetDateTime(const DS3231_DateTime *dt) {
     );
 
     if (status != HAL_OK) {
-    	uart_print("[RTC] Error al escribir en DS3231\r\n");
+    	uart_print(RTC_MSG_SET_FAIL);
         return false;
     }
     return true;
@@ -131,7 +131,7 @@ float DS3231_GetTemperature(void) {
 void rtc_get_time(char *buffer, size_t len) {
     DS3231_DateTime dt;
     DS3231_GetDateTime(&dt);
-    snprintf(buffer, len, "%04d-%02d-%02d %02d:%02d:%02d",
+    snprintf(buffer, len, RTC_GET_FORMAT_DATETIME,
              dt.year, dt.month, dt.day,
              dt.hours, dt.minutes, dt.seconds);
 }
@@ -159,13 +159,13 @@ void rtc_set_time_from_uart(const char *input_str) {
     // Limpieza del string: verificar longitud y que todos sean dígitos
     size_t len = strlen(input_str);
     if (len != 14) {
-        uart_print("[ERROR] Longitud incorrecta. Debe tener 14 dígitos (YYYYMMDDHHMMSS).\r\n");
+        uart_print(RTC_MSG_ERROR_LONG_INVALID);
         return;
     }
 
     for (size_t i = 0; i < len; ++i) {
         if (!isdigit((unsigned char)input_str[i])) {
-            uart_print("[ERROR] El string contiene caracteres no numéricos.\r\n");
+            uart_print(RTC_MSG_ERROR_CARACTER_INVALID);
             return;
         }
     }
@@ -178,10 +178,10 @@ void rtc_set_time_from_uart(const char *input_str) {
     // Parseo del string
 
     int y, mo, d, h, mi, s;
-    int parsed = sscanf(input_str, "%4d%2d%2d%2d%2d%2d", &y, &mo, &d, &h, &mi, &s);
+    int parsed = sscanf(input_str, RTC_SET_FORMAT_DATETIME , &y, &mo, &d, &h, &mi, &s);
 
     if (parsed != 6) {
-        snprintf(debug_buf, sizeof(debug_buf), "[ERROR] sscanf falló. Valores parseados: %d\r\n", parsed);
+        snprintf(debug_buf, sizeof(debug_buf), RTC_MSG_ERROR_VALUE_INVALID, parsed);
         uart_print(debug_buf);
         uart_print(RTC_MSG_PARSE_ERROR);
         return;
@@ -196,7 +196,7 @@ void rtc_set_time_from_uart(const char *input_str) {
     dt.seconds = (uint8_t)s;
 
     if (parsed != 6) {
-        snprintf(debug_buf, sizeof(debug_buf), "[ERROR] sscanf falló. Valores parseados: %d\r\n", parsed);
+        snprintf(debug_buf, sizeof(debug_buf), RTC_MSG_ERROR_VALUE_INVALID, parsed);
         uart_print(debug_buf);
         uart_print(RTC_MSG_PARSE_ERROR);
         return;
@@ -226,7 +226,7 @@ void rtc_set_time_from_uart(const char *input_str) {
     if (DS3231_SetDateTime(&dt)) {
         uart_print(RTC_MSG_SET_SUCCESS);
     } else {
-        uart_(RTC_MSG_SET_FAIL);
+        uart_print(RTC_MSG_SET_FAIL);
     }
 }
 
@@ -243,35 +243,31 @@ void rtc_set_test_time(void) {
     };
 
     dt = rtc_get_compile_time();
-
-    uart_print("[TEST] Intentando configurar RTC con fecha fija...\r\n");
+    uart_print(RTC_TEST_INIT_MSG);
 
     if (DS3231_SetDateTime(&dt)) {
-        uart_print("[TEST] RTC configurado con exito.\r\n");
+        uart_print(RTC_TEST_SUCCESS_MSG);
 
         DS3231_DateTime verif;
         DS3231_GetDateTime(&verif);
 
         char buffer[64];
-        snprintf(buffer, sizeof(buffer),
-                 "[TEST] Verificacion: %04d-%02d-%02d %02d:%02d:%02d\r\n",
+        snprintf(buffer, sizeof(buffer), RTC_TEST_VERIF_MSG_FMT,
                  verif.year, verif.month, verif.day,
                  verif.hours, verif.minutes, verif.seconds);
         uart_print(buffer);
 
-
         verif = rtc_get_compile_time();
 
-        snprintf(buffer, sizeof(buffer),
-                      "[TEST] Verificacion fecha compilacion: %04d-%02d-%02d %02d:%02d:%02d\r\n",
-                      verif.year, verif.month, verif.day,
-                      verif.hours, verif.minutes, verif.seconds);
-             uart_print(buffer);
-
+        snprintf(buffer, sizeof(buffer), RTC_TEST_COMPILE_TIME_FMT,
+                 verif.year, verif.month, verif.day,
+                 verif.hours, verif.minutes, verif.seconds);
+        uart_print(buffer);
 
     } else {
-        uart_print("[TEST] Error al configurar RTC.\r\n");
+        uart_print(RTC_TEST_FAILURE_MSG);
     }
+
 #endif
 }
 
@@ -282,22 +278,29 @@ void rtc_set_test_time(void) {
  * @return DS3231_DateTime con campos cargados desde __DATE__ y __TIME__.
  */
 DS3231_DateTime rtc_get_compile_time(void) {
-    DS3231_DateTime dt = {0};
-    char month_str[4] = {0};
+    DS3231_DateTime dt = {
+        .day     = DATE_DEFAULT_DAY,
+        .month   = 1,
+        .year    = DATE_DEFAULT_YEAR,
+        .hours   = TIME_DEFAULT_HOUR,
+        .minutes = TIME_DEFAULT_MIN,
+        .seconds = TIME_DEFAULT_SEC
+    };
+
+    char month_str[COMPILE_MONTH_STR_LEN + 1] = {0};
     int day, year;
 
-    // __DATE__ = "May 15 2025"
-    if (sscanf(__DATE__, "%3s %d %d", month_str, &day, &year) == 3) {
-        dt.day = (uint8_t)day;
+    if (sscanf(COMPILE_DATE_STRING, DATE_PARSE_FORMAT, month_str, &day, &year) == 3) {
+        dt.day  = (uint8_t)day;
         dt.year = (uint16_t)year;
 
-        const char* months[] = {
+        const char* months[COMPILE_MONTHS_COUNT] = {
             "Jan", "Feb", "Mar", "Apr", "May", "Jun",
             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
         };
 
-        for (uint8_t i = 0; i < 12; ++i) {
-            if (strncmp(month_str, months[i], 3) == 0) {
+        for (uint8_t i = 0; i < COMPILE_MONTHS_COUNT; ++i) {
+            if (strncmp(month_str, months[i], COMPILE_MONTH_STR_LEN) == 0) {
                 dt.month = i + 1;
                 break;
             }
@@ -305,8 +308,8 @@ DS3231_DateTime rtc_get_compile_time(void) {
     }
 
     int h, m, s;
-    if (sscanf(__TIME__, "%d:%d:%d", &h, &m, &s) == 3) {
-        dt.hours = (uint8_t)h;
+    if (sscanf(COMPILE_TIME_STRING, TIME_PARSE_FORMAT, &h, &m, &s) == 3) {
+        dt.hours   = (uint8_t)h;
         dt.minutes = (uint8_t)m;
         dt.seconds = (uint8_t)s;
     }
@@ -329,7 +332,7 @@ bool RTC_DS3231_Set(RTC_DateTypeDef *date, RTC_TimeTypeDef *time)
     bool resultado = DS3231_SetDateTime(&dt);
 
     if (!resultado) {
-    	uart_print("Error al escribir al DS3231\r\n");
+        uart_print(RTC_DS3231_WRITE_ERROR_MSG);
     }
 
     return resultado;
@@ -340,15 +343,15 @@ bool RTC_DS3231_Get(RTC_DateTypeDef *date, RTC_TimeTypeDef *time)
     DS3231_DateTime dt;
 
     if (!DS3231_GetDateTime(&dt)) {
-        uart_print("Error al leer desde el DS3231\r\n");
+        uart_print(RTC_DS3231_READ_ERROR_MSG);
         return false;
     }
 
     // Convertir a estructuras HAL
-    date->Year    = (uint8_t)(dt.year - 2000);  // HAL espera [0..99]
+    date->Year    = (uint8_t)(dt.year - 2000);
     date->Month   = dt.month;
     date->Date    = dt.day;
-    date->WeekDay = 1;  // por defecto, o calcular si lo deseas
+    date->WeekDay = 1;  // opcionalmente se puede calcular
 
     time->Hours   = dt.hours;
     time->Minutes = dt.minutes;
@@ -356,7 +359,58 @@ bool RTC_DS3231_Get(RTC_DateTypeDef *date, RTC_TimeTypeDef *time)
 
     return true;
 }
+#include "rtc_ds3231_for_stm32_hal.h"
 
+bool ds3231_get_time(uint8_t *hour, uint8_t *min, uint8_t *sec)
+{
+    RTC_DateTypeDef date_dummy;
+    RTC_TimeTypeDef time;
+
+    if (!RTC_DS3231_Get(&date_dummy, &time)) {
+        return false;
+    }
+
+    if (hour) *hour = time.Hours;
+    if (min)  *min  = time.Minutes;
+    if (sec)  *sec  = time.Seconds;
+
+    return true;
+}
+
+bool ds3231_get_date(uint8_t *day, uint8_t *month, uint16_t *year)
+{
+    RTC_DateTypeDef date;
+    RTC_TimeTypeDef time_dummy;
+
+    if (!RTC_DS3231_Get(&date, &time_dummy)) {
+        return false;
+    }
+
+    if (day)   *day   = date.Date;
+    if (month) *month = date.Month;
+    if (year)  *year  = 2000 + date.Year;
+
+    return true;
+}
+
+bool ds3231_get_datetime(ds3231_time_t *dt)
+{
+    RTC_DateTypeDef date;
+    RTC_TimeTypeDef time;
+
+    if (!RTC_DS3231_Get(&date, &time)) {
+        return false;
+    }
+
+    dt->hour  = time.Hours;
+    dt->min   = time.Minutes;
+    dt->sec   = time.Seconds;
+    dt->day   = date.Date;
+    dt->month = date.Month;
+    dt->year  = 2000 + date.Year;
+
+    return true;
+}
 
 
 #ifdef __cplusplus

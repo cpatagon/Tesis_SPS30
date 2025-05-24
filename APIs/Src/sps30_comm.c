@@ -16,6 +16,7 @@
 #define BUFFER_PRINT_CONCENTRATION   100
 
 #define MENSAJE_SIZE_RESPUESTA       "\nLongitud de respuesta:\n %d <--"
+#define MSN_SERIAL_NUMBER  "\nSerial Number: %s\n"
 
 #define MSG_INICIO_MEDICION            "\n Inicio_medicion:\n"
 #define MSG_RESPUESTA_INICIO_MEDICION  "\n Respuesta inicio:\n"
@@ -177,7 +178,7 @@ void sps30_serial_number(SPS30 *self) {
 
     // Imprimir de forma legible
     char mensaje[64];
-    snprintf(mensaje, sizeof(mensaje), "\nSerial Number: %s\n", serial);
+    snprintf(mensaje, sizeof(mensaje), MSN_SERIAL_NUMBER , serial);
     uart_print("%s", mensaje);
 }
 

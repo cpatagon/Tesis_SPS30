@@ -1,6 +1,6 @@
-time_rtc.c:60:13:rtc_external_available	1
-time_rtc.c:69:6:rtc_auto_init	2
-time_rtc.c:114:6:RTC_ReceiveTimeFromTerminal	9
-time_rtc.c:198:6:obtener_fecha_hora	1
-time_rtc.c:203:6:time_rtc_Init	1
-time_rtc.c:207:6:time_rtc_GetFormattedDateTime	1
+time_rtc.c:65:13:rtc_external_available	1
+time_rtc.c:74:6:rtc_auto_init	2
+time_rtc.c:99:6:RTC_ReceiveTimeFromTerminal	9
+time_rtc.c:179:6:obtener_fecha_hora	1
+time_rtc.c:183:6:time_rtc_Init	1
+time_rtc.c:187:6:time_rtc_GetFormattedDateTime	1

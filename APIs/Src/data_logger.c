@@ -28,18 +28,29 @@
 
 /* === Headers files inclusions =============================================================== */
 
-#include "fatfs.h"
-#include "rtc.h"
-#include "data_logger.h"
-#include "time_rtc.h"
-#include "uart.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+
+
+#include "fatfs.h"
+#include "fatfs_sd.h"
+#include "microSD.h"
+
+#include "rtc.h"
+#include "data_logger.h"
+#include "time_rtc.h"
+
+#include "uart.h"
+#include "ff.h"
+
+#include "rtc_ds3231_for_stm32_hal.h"
 
 
 /* === Macros definitions ====================================================================== */
 
+#define CSV_LINE_BUFFER_SIZE 128
 
 /* === Private data type declarations ========================================================== */
 
@@ -49,6 +60,9 @@
 static MedicionMP buffer_alta_frec[BUFFER_HIGH_FREQ_SIZE];
 static MedicionMP buffer_horario[BUFFER_HOURLY_SIZE];
 static MedicionMP buffer_diario[BUFFER_DAILY_SIZE];
+
+static FATFS fs;            // Sistema de archivos FAT32
+static bool sd_mounted = false; // Bandera de estado para evitar montaje doble
 
 static BufferCircular buffer_alta_frecuencia = {
     .datos = buffer_alta_frec,
@@ -71,6 +85,8 @@ static BufferCircular buffer_dia = {
     .cantidad = 0
 };
 
+
+extern RTC_HandleTypeDef hrtc;
 /* === Private function declarations =========================================================== */
 
 /* === Public variable definitions ============================================================= */
@@ -106,19 +122,15 @@ static void buffer_circular_agregar(BufferCircular* buffer, const MedicionMP* me
 
 bool data_logger_init(void) {
     // Inicializar buffers
-    memset(buffer_alta_frec, 0, sizeof(buffer_alta_frec));
-    memset(buffer_horario, 0, sizeof(buffer_horario));
-    memset(buffer_diario, 0, sizeof(buffer_diario));
+    FRESULT res = f_mount(&fs, "", 1);
+    if (res != FR_OK) {
+        print_fatfs_error(res);  // ⬅️ nueva línea aquí
+        sd_mounted = false;
+        return false;
+    }
 
-    buffer_alta_frecuencia.inicio = 0;
-    buffer_alta_frecuencia.cantidad = 0;
-
-    buffer_hora.inicio = 0;
-    buffer_hora.cantidad = 0;
-
-    buffer_dia.inicio = 0;
-    buffer_dia.cantidad = 0;
-
+    uart_print("[OK] microSD montada correctamente\r\n");
+    sd_mounted = true;
     return true;
 }
 
@@ -251,8 +263,179 @@ FRESULT guardar_promedio_csv(float pm1_0, float pm2_5, float pm4_0, float pm10, 
     return res;
 }
 
+/**
+ * @brief Formatea una estructura de datos como línea CSV
+ *
+ * @param data Puntero a estructura con los datos
+ * @param csv_line Cadena de salida donde se almacenará la línea CSV
+ * @param max_len Tamaño máximo del búfer de salida
+ * @return true si el formateo fue exitoso, false si hubo error de espacio
+ */
+bool format_csv_line(const ParticulateData *data, char *csv_line, size_t max_len)
+{
+    int written = snprintf(csv_line, max_len,
+        "%s,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f\n",
+        data->timestamp, data->sensor_id,
+        data->pm1_0, data->pm2_5, data->pm4_0, data->pm10,
+        data->temp, data->hum);
+
+    return (written > 0 && (size_t)written < max_len);
+}
 
 
+
+bool build_csv_filepath_from_datetime(char *filepath, size_t max_len)
+{
+	ds3231_time_t dt;
+
+	    if (!ds3231_get_datetime(&dt)) {
+	        uart_print("Error: No se pudo leer el DS3231\r\n");
+	        return false;
+	    }
+
+	    char debug[64];
+	    snprintf(debug, sizeof(debug),
+	             "RTC DS3231: %04d/%02d/%02d %02d:%02d:%02d\r\n",
+	             dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec);
+	    uart_print(debug);
+
+	    int written = snprintf(filepath, max_len,
+	        "/%04d/%02d/%02d/DATA_%02d%02d%02d.CSV",
+	        dt.year, dt.month, dt.day,
+	        dt.hour, dt.min, dt.sec);
+
+	    return (written > 0 && (size_t)written < max_len);
+}
+
+
+bool log_data_to_sd(const ParticulateData *data)
+{
+
+    if (!sd_mounted) {
+        if (!data_logger_init()) return false;
+    }
+
+    FRESULT res;
+    FIL file;
+    char filepath[64];
+    char csv_line[CSV_LINE_BUFFER_SIZE];
+    char dirpath[32];
+    ds3231_time_t dt;
+
+    if (!ds3231_get_datetime(&dt)) {
+        uart_print("Error al obtener la hora del DS3231\r\n");
+        return false;
+    }
+
+    // Crear ruta de directorio
+    snprintf(dirpath, sizeof(dirpath), "/%04d", dt.year);
+    f_mkdir(dirpath);
+
+    snprintf(dirpath, sizeof(dirpath), "/%04d/%02d", dt.year, dt.month);
+    f_mkdir(dirpath);
+
+    snprintf(dirpath, sizeof(dirpath), "/%04d/%02d/%02d", dt.year, dt.month, dt.day);
+    f_mkdir(dirpath);
+
+    // Ruta final de archivo
+    snprintf(filepath, sizeof(filepath),
+             "/%04d/%02d/%02d/DATA_%02d%02d%02d.CSV",
+             dt.year, dt.month, dt.day,
+             dt.hour, dt.min, dt.sec);
+
+    // Generar línea CSV
+    if (!format_csv_line(data, csv_line, sizeof(csv_line))) {
+        uart_print("Error al generar línea CSV\r\n");
+        return false;
+    }
+
+    // Abrir archivo
+    res = f_open(&file, filepath, FA_OPEN_ALWAYS | FA_WRITE);
+    if (res != FR_OK) {
+        uart_print("No se pudo abrir archivo para escribir\r\n");
+        return false;
+    }
+
+    // Mover al final
+    f_lseek(&file, f_size(&file));
+
+    // Escribir
+    UINT written;
+    res = f_write(&file, csv_line, strlen(csv_line), &written);
+    if (res != FR_OK || written != strlen(csv_line)) {
+        uart_print("Fallo al escribir en microSD\r\n");
+        f_close(&file);
+        return false;
+    }
+
+    f_close(&file);
+    uart_print("Línea escrita en SD:\r\n");
+    uart_print(csv_line);
+    return true;
+}
+
+
+void print_fatfs_error(FRESULT res)
+{
+    char msg[64];
+    snprintf(msg, sizeof(msg), "f_mount() error code: %d\r\n", res);
+    uart_print(msg);
+
+    switch (res) {
+        case FR_OK: uart_print("✔ FR_OK: Operación exitosa\r\n"); break;
+        case FR_DISK_ERR: uart_print("❌ FR_DISK_ERR: Error físico en el disco\r\n"); break;
+        case FR_INT_ERR: uart_print("❌ FR_INT_ERR: Error interno de FatFs\r\n"); break;
+        case FR_NOT_READY: uart_print("❌ FR_NOT_READY: Disco no está listo\r\n"); break;
+        case FR_NO_FILE: uart_print("❌ FR_NO_FILE: Archivo no encontrado\r\n"); break;
+        case FR_NO_PATH: uart_print("❌ FR_NO_PATH: Ruta no encontrada\r\n"); break;
+        case FR_INVALID_NAME: uart_print("❌ FR_INVALID_NAME: Nombre inválido\r\n"); break;
+        case FR_DENIED: uart_print("❌ FR_DENIED: Acceso denegado\r\n"); break;
+        case FR_EXIST: uart_print("❌ FR_EXIST: Archivo ya existe\r\n"); break;
+        case FR_INVALID_OBJECT: uart_print("❌ FR_INVALID_OBJECT: Objeto inválido\r\n"); break;
+        case FR_WRITE_PROTECTED: uart_print("❌ FR_WRITE_PROTECTED: Tarjeta protegida contra escritura\r\n"); break;
+        case FR_INVALID_DRIVE: uart_print("❌ FR_INVALID_DRIVE: Unidad inválida\r\n"); break;
+        case FR_NOT_ENABLED: uart_print("❌ FR_NOT_ENABLED: FatFs no está habilitado\r\n"); break;
+        case FR_NO_FILESYSTEM: uart_print("❌ FR_NO_FILESYSTEM: No hay sistema de archivos FAT válido\r\n"); break;
+        case FR_TIMEOUT: uart_print("❌ FR_TIMEOUT: Timeout de acceso\r\n"); break;
+        case FR_LOCKED: uart_print("❌ FR_LOCKED: El archivo está bloqueado\r\n"); break;
+        default: uart_print("❌ Código de error desconocido\r\n"); break;
+    }
+}
+
+bool data_logger_write_csv_line(const ParticulateData *data)
+{
+    char line[CSV_LINE_BUFFER_SIZE];
+
+    if (!format_csv_line(data, line, sizeof(line))) {
+        uart_print("❌ Error formateando línea CSV\r\n");
+        return false;
+    }
+
+    // Ruta de archivo
+    char path[128];
+    if (!build_csv_filepath_from_datetime(path, sizeof(path))) {
+        uart_print("❌ Error generando ruta de archivo CSV\r\n");
+        return false;
+    }
+
+    // Crear carpeta si es necesario
+    f_mkdir(path);  // o f_mkdir_recursive si la tienes implementada
+
+    FIL file;
+    FRESULT res = f_open(&file, path, FA_OPEN_APPEND | FA_WRITE);
+    if (res != FR_OK) {
+        uart_print("❌ No se pudo abrir el archivo CSV\r\n");
+        return false;
+    }
+
+    UINT bytes_written;
+    f_write(&file, line, strlen(line), &bytes_written);
+    f_write(&file, "\r\n", 2, &bytes_written);
+    f_close(&file);
+
+    uart_print("✅ Línea escrita correctamente en CSV\r\n");
+    return true;
+}
 
 
 /* === End of documentation ==================================================================== */
