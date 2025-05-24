@@ -37,7 +37,7 @@
 /* === Definiciones de macros públicas ========================================================== */
 #define FRAME_DATA_VECTOR_SIZE_MOSI 60
 #define FRAME_DATA_VECTOR_SIZE_MISO 60
-#define SPS30_ERR_STATE_MASK 0x8000
+#define SPS30_ERR_STATE_MASK        0x8000
 
 /* === Declaraciones de tipos de datos públicos ================================================= */
 

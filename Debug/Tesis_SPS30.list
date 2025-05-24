@@ -10125,7 +10125,7 @@ HAL_StatusTypeDef HAL_Init(void)
 {
  80049bc:	b580      	push	{r7, lr}
  80049be:	af00      	add	r7, sp, #0
-  /* Configure Flash prefetch, Instruction cache, Data cache */ 
+  /* Configure Flash prefetch, Instruction cache, Data cache */
 #if (INSTRUCTION_CACHE_ENABLE != 0U)
   __HAL_FLASH_INSTRUCTION_CACHE_ENABLE();
  80049c0:	4b0e      	ldr	r3, [pc, #56]	; (80049fc <HAL_Init+0x40>)
@@ -10243,7 +10243,7 @@ __weak HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
  8004a5c:	20000038 	.word	0x20000038
 
 08004a60 <HAL_IncTick>:
- * @note This function is declared as __weak to be overwritten in case of other 
+ * @note This function is declared as __weak to be overwritten in case of other
   *      implementations in user file.
   * @retval None
   */
@@ -10270,7 +10270,7 @@ __weak void HAL_IncTick(void)
  8004a84:	20002270 	.word	0x20002270
 
 08004a88 <HAL_GetTick>:
-  * @note This function is declared as __weak to be overwritten in case of other 
+  * @note This function is declared as __weak to be overwritten in case of other
   *       implementations in user file.
   * @retval tick value
   */
@@ -10585,8 +10585,8 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
  8004c48:	e000e010 	.word	0xe000e010
 
 08004c4c <HAL_NVIC_SetPriorityGrouping>:
-  * @note   When the NVIC_PriorityGroup_0 is selected, IRQ preemption is no more possible. 
-  *         The pending IRQ priority will be managed only by the subpriority. 
+  * @note   When the NVIC_PriorityGroup_0 is selected, IRQ preemption is no more possible.
+  *         The pending IRQ priority will be managed only by the subpriority.
   * @retval None
   */
 void HAL_NVIC_SetPriorityGrouping(uint32_t PriorityGroup)
@@ -10597,7 +10597,7 @@ void HAL_NVIC_SetPriorityGrouping(uint32_t PriorityGroup)
  8004c52:	6078      	str	r0, [r7, #4]
   /* Check the parameters */
   assert_param(IS_NVIC_PRIORITY_GROUP(PriorityGroup));
-  
+
   /* Set the PRIGROUP[10:8] bits according to the PriorityGroup parameter value */
   NVIC_SetPriorityGrouping(PriorityGroup);
  8004c54:	6878      	ldr	r0, [r7, #4]
@@ -10610,11 +10610,11 @@ void HAL_NVIC_SetPriorityGrouping(uint32_t PriorityGroup)
 
 08004c62 <HAL_NVIC_SetPriority>:
   *         This parameter can be a value between 0 and 15
-  *         A lower priority value indicates a higher priority.          
+  *         A lower priority value indicates a higher priority.
   * @retval None
   */
 void HAL_NVIC_SetPriority(IRQn_Type IRQn, uint32_t PreemptPriority, uint32_t SubPriority)
-{ 
+{
  8004c62:	b580      	push	{r7, lr}
  8004c64:	b086      	sub	sp, #24
  8004c66:	af00      	add	r7, sp, #0
@@ -10625,15 +10625,15 @@ void HAL_NVIC_SetPriority(IRQn_Type IRQn, uint32_t PreemptPriority, uint32_t Sub
   uint32_t prioritygroup = 0x00U;
  8004c70:	2300      	movs	r3, #0
  8004c72:	617b      	str	r3, [r7, #20]
-  
+
   /* Check the parameters */
   assert_param(IS_NVIC_SUB_PRIORITY(SubPriority));
   assert_param(IS_NVIC_PREEMPTION_PRIORITY(PreemptPriority));
-  
+
   prioritygroup = NVIC_GetPriorityGrouping();
  8004c74:	f7ff ff5c 	bl	8004b30 <__NVIC_GetPriorityGrouping>
  8004c78:	6178      	str	r0, [r7, #20]
-  
+
   NVIC_SetPriority(IRQn, NVIC_EncodePriority(prioritygroup, PreemptPriority, SubPriority));
  8004c7a:	687a      	ldr	r2, [r7, #4]
  8004c7c:	68b9      	ldr	r1, [r7, #8]
@@ -10743,7 +10743,7 @@ void HAL_GPIO_Init(GPIO_TypeDef  *GPIOx, GPIO_InitTypeDef *GPIO_Init)
         /* Check the Speed parameter */
         assert_param(IS_GPIO_SPEED(GPIO_Init->Speed));
         /* Configure the IO Speed */
-        temp = GPIOx->OSPEEDR; 
+        temp = GPIOx->OSPEEDR;
  8004d06:	687b      	ldr	r3, [r7, #4]
  8004d08:	689b      	ldr	r3, [r3, #8]
  8004d0a:	61bb      	str	r3, [r7, #24]
@@ -10808,7 +10808,7 @@ void HAL_GPIO_Init(GPIO_TypeDef  *GPIOx, GPIO_InitTypeDef *GPIO_Init)
       {
         /* Check the parameters */
         assert_param(IS_GPIO_PULL(GPIO_Init->Pull));
-        
+
         /* Activate the Pull-up or Pull down resistor for the current IO */
         temp = GPIOx->PUPDR;
  8004d74:	687b      	ldr	r3, [r7, #4]
@@ -11202,7 +11202,7 @@ void HAL_GPIO_DeInit(GPIO_TypeDef  *GPIOx, uint32_t GPIO_Pin)
 
   /* Check the parameters */
   assert_param(IS_GPIO_ALL_INSTANCE(GPIOx));
-  
+
   /* Configure the port pins */
   for(position = 0U; position < GPIO_NUMBER; position++)
  8005022:	2300      	movs	r3, #0
@@ -11332,7 +11332,7 @@ void HAL_GPIO_DeInit(GPIO_TypeDef  *GPIOx, uint32_t GPIO_Pin)
  8005106:	4946      	ldr	r1, [pc, #280]	; (8005220 <HAL_GPIO_DeInit+0x214>)
  8005108:	4013      	ands	r3, r2
  800510a:	604b      	str	r3, [r1, #4]
-        
+
         /* Clear Rising Falling edge configuration */
         EXTI->FTSR &= ~((uint32_t)iocurrent);
  800510c:	4b44      	ldr	r3, [pc, #272]	; (8005220 <HAL_GPIO_DeInit+0x214>)

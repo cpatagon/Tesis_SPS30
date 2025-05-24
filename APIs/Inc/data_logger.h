@@ -2,20 +2,20 @@
  * Nombre del archivo: data_logger.h
  * Descripción: [Breve descripción del archivo]
  * Autor: lgomez
- * Creado en: May 10, 2025 
+ * Creado en: May 10, 2025
  * Derechos de Autor: (C) 2023 [Tu nombre o el de tu organización]
  * Licencia: GNU General Public License v3.0
- * 
+ *
  * Este programa es software libre: puedes redistribuirlo y/o modificarlo
  * bajo los términos de la Licencia Pública General GNU publicada por
  * la Free Software Foundation, ya sea la versión 3 de la Licencia, o
  * (a tu elección) cualquier versión posterior.
- * 
+ *
  * Este programa se distribuye con la esperanza de que sea útil,
  * pero SIN NINGUNA GARANTÍA; sin siquiera la garantía implícita
  * de COMERCIABILIDAD o APTITUD PARA UN PROPÓSITO PARTICULAR. Ver la
  * Licencia Pública General GNU para más detalles.
- * 
+ *
  * Deberías haber recibido una copia de la Licencia Pública General GNU
  * junto con este programa. Si no es así, visita <http://www.gnu.org/licenses/>.
  *
@@ -25,12 +25,12 @@
 #ifndef INC_DATA_LOGGER_H_
 #define INC_DATA_LOGGER_H_
 /** @file
- ** @brief 
+ ** @brief
  **/
 
 /* === Headers files inclusions ================================================================ */
 
-#include "shdlc.h"  // Para acceder a ConcentracionesPM
+#include "shdlc.h" // Para acceder a ConcentracionesPM
 #include <stdint.h>
 #include <stdbool.h>
 #include "uart.h"
@@ -43,12 +43,11 @@ extern "C" {
 /* === Public macros definitions =============================================================== */
 
 // Tamaños de los buffers circulares
-#define BUFFER_HIGH_FREQ_SIZE 60  // 60 muestras cada 10min = 10h
-#define BUFFER_HOURLY_SIZE    24  // 24 muestras = 1 día
-#define BUFFER_DAILY_SIZE     30  // 30 muestras = 1 mes
+#define BUFFER_HIGH_FREQ_SIZE 60 // 60 muestras cada 10min = 10h
+#define BUFFER_HOURLY_SIZE    24 // 24 muestras = 1 día
+#define BUFFER_DAILY_SIZE     30 // 30 muestras = 1 mes
 
-
-#define CSV_LINE_BUFFER_SIZE 128
+#define CSV_LINE_BUFFER_SIZE  128
 
 /* === Public data type declarations =========================================================== */
 
@@ -63,30 +62,29 @@ extern "C" {
  * @param hum    Promedio de humedad relativa en %
  * @return FRESULT Código de resultado de la operación FatFs
  */
-FRESULT guardar_promedio_csv(float pm1_0, float pm2_5, float pm4_0, float pm10, float temp, float hum);
-
+FRESULT guardar_promedio_csv(float pm1_0, float pm2_5, float pm4_0, float pm10, float temp,
+                             float hum);
 
 /**
  * @brief Estructura para almacenar una medición de material particulado
  */
 typedef struct {
-    char timestamp[32];          // Formato ISO8601
-    uint8_t sensor_id;           // ID del sensor
-    ConcentracionesPM valores;   // Valores de concentración
-    float temperatura;           // Temperatura ambiente (opcional)
-    float humedad;               // Humedad ambiente (opcional)
+    char timestamp[32];        // Formato ISO8601
+    uint8_t sensor_id;         // ID del sensor
+    ConcentracionesPM valores; // Valores de concentración
+    float temperatura;         // Temperatura ambiente (opcional)
+    float humedad;             // Humedad ambiente (opcional)
 } MedicionMP;
 
 /**
  * @brief Estructura para un buffer circular de datos
  */
 typedef struct {
-    MedicionMP* datos;          // Array de mediciones
-    uint32_t capacidad;         // Tamaño máximo del buffer
-    uint32_t inicio;            // Índice del elemento más antiguo
-    uint32_t cantidad;          // Cantidad actual de elementos
+    MedicionMP * datos; // Array de mediciones
+    uint32_t capacidad; // Tamaño máximo del buffer
+    uint32_t inicio;    // Índice del elemento más antiguo
+    uint32_t cantidad;  // Cantidad actual de elementos
 } BufferCircular;
-
 
 typedef struct {
     char timestamp[25]; // "2025-05-21T21:30:00Z"
@@ -119,8 +117,8 @@ bool data_logger_init(void);
  * @param humedad Humedad ambiente (opcional, usar -999 si no disponible)
  * @return true si el almacenamiento fue exitoso
  */
-bool data_logger_store_measurement(uint8_t sensor_id, ConcentracionesPM valores,
-                                   float temperatura, float humedad);
+bool data_logger_store_measurement(uint8_t sensor_id, ConcentracionesPM valores, float temperatura,
+                                   float humedad);
 
 /**
  * @brief Obtiene el promedio de PM2.5 de las últimas N mediciones
@@ -138,7 +136,6 @@ float data_logger_get_average_pm25(uint8_t sensor_id, uint32_t num_mediciones);
  */
 void data_logger_print_summary(void);
 
-
 /**
  * @brief Formatea una estructura de datos como línea CSV
  *
@@ -147,17 +144,15 @@ void data_logger_print_summary(void);
  * @param max_len Tamaño máximo del búfer de salida
  * @return true si el formateo fue exitoso, false si hubo error de espacio
  */
-bool format_csv_line(const ParticulateData *data, char *csv_line, size_t max_len);
+bool format_csv_line(const ParticulateData * data, char * csv_line, size_t max_len);
 
+bool build_csv_filepath_from_datetime(char * filepath, size_t max_len);
 
-bool build_csv_filepath_from_datetime(char *filepath, size_t max_len);
-
-bool log_data_to_sd(const ParticulateData *data);
+bool log_data_to_sd(const ParticulateData * data);
 
 void print_fatfs_error(FRESULT res);
 
-bool data_logger_write_csv_line(const ParticulateData *data);
-
+bool data_logger_write_csv_line(const ParticulateData * data);
 
 /* === End of documentation ==================================================================== */
 

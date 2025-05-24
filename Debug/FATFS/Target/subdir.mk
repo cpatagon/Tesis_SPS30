@@ -3,15 +3,15 @@
 # Toolchain: GNU Tools for STM32 (10.3-2021.10)
 ################################################################################
 
-# Add inputs and outputs from these tool invocations to the build variables 
+# Add inputs and outputs from these tool invocations to the build variables
 C_SRCS += \
-../FATFS/Target/user_diskio.c 
+../FATFS/Target/user_diskio.c
 
 OBJS += \
-./FATFS/Target/user_diskio.o 
+./FATFS/Target/user_diskio.o
 
 C_DEPS += \
-./FATFS/Target/user_diskio.d 
+./FATFS/Target/user_diskio.d
 
 
 # Each subdirectory must supply rules for building sources it contributes
@@ -24,4 +24,3 @@ clean-FATFS-2f-Target:
 	-$(RM) ./FATFS/Target/user_diskio.cyclo ./FATFS/Target/user_diskio.d ./FATFS/Target/user_diskio.o ./FATFS/Target/user_diskio.su
 
 .PHONY: clean-FATFS-2f-Target
-

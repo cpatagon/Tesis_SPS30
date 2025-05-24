@@ -3,15 +3,15 @@
 # Toolchain: GNU Tools for STM32 (10.3-2021.10)
 ################################################################################
 
-# Add inputs and outputs from these tool invocations to the build variables 
+# Add inputs and outputs from these tool invocations to the build variables
 C_SRCS += \
-../Tests/test_format_csv.c 
+../Tests/test_format_csv.c
 
 OBJS += \
-./Tests/test_format_csv.o 
+./Tests/test_format_csv.o
 
 C_DEPS += \
-./Tests/test_format_csv.d 
+./Tests/test_format_csv.d
 
 
 # Each subdirectory must supply rules for building sources it contributes
@@ -24,4 +24,3 @@ clean-Tests:
 	-$(RM) ./Tests/test_format_csv.cyclo ./Tests/test_format_csv.d ./Tests/test_format_csv.o ./Tests/test_format_csv.su
 
 .PHONY: clean-Tests
-

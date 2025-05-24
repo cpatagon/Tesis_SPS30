@@ -3,15 +3,15 @@
 # Toolchain: GNU Tools for STM32 (10.3-2021.10)
 ################################################################################
 
-# Add inputs and outputs from these tool invocations to the build variables 
+# Add inputs and outputs from these tool invocations to the build variables
 C_SRCS += \
-../FATFS/App/fatfs.c 
+../FATFS/App/fatfs.c
 
 OBJS += \
-./FATFS/App/fatfs.o 
+./FATFS/App/fatfs.o
 
 C_DEPS += \
-./FATFS/App/fatfs.d 
+./FATFS/App/fatfs.d
 
 
 # Each subdirectory must supply rules for building sources it contributes
@@ -24,4 +24,3 @@ clean-FATFS-2f-App:
 	-$(RM) ./FATFS/App/fatfs.cyclo ./FATFS/App/fatfs.d ./FATFS/App/fatfs.o ./FATFS/App/fatfs.su
 
 .PHONY: clean-FATFS-2f-App
-

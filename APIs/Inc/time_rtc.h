@@ -2,9 +2,9 @@
  * @file time_rtc.h
  * @brief Funciones para gestión automática del RTC en STM32 (DS1307/DS3231).
  *
- * Este archivo proporciona interfaces para inicializar, configurar y leer la hora desde un RTC externo (como el DS3231)
- * o el RTC interno del STM32F429ZI. Permite obtener la hora actual formateada, actualizar el RTC desde UART y realizar
- * pruebas de validación.
+ * Este archivo proporciona interfaces para inicializar, configurar y leer la hora desde un RTC
+ * externo (como el DS3231) o el RTC interno del STM32F429ZI. Permite obtener la hora actual
+ * formateada, actualizar el RTC desde UART y realizar pruebas de validación.
  *
  * ### Funciones incluidas:
  * - rtc_auto_init(): Inicializa el RTC disponible (externo si responde, interno si no).
@@ -56,13 +56,13 @@ void rtc_auto_init(void);
  * @param buffer Puntero al buffer donde se guardará la cadena de fecha/hora.
  * @param len Longitud máxima del buffer.
  */
-void rtc_get_time(char *buffer, size_t len);
+void rtc_get_time(char * buffer, size_t len);
 
 /**
  * @brief Alias para rtc_get_time() con nombre legado.
  * @param fecha_hora_str Cadena donde se almacena la fecha/hora.
  */
-void obtener_fecha_hora(char *fecha_hora_str);
+void obtener_fecha_hora(char * fecha_hora_str);
 
 /**
  * @brief Inicializa el módulo RTC completo.
@@ -74,12 +74,12 @@ void time_rtc_Init(void);
  * @param buffer Puntero al buffer donde se almacena el resultado.
  * @param len Tamaño máximo del buffer.
  */
-void time_rtc_GetFormattedDateTime(char *buffer, size_t len);
+void time_rtc_GetFormattedDateTime(char * buffer, size_t len);
 
 /**
  * @brief Solicita fecha y hora desde terminal UART e intenta configurarla.
  */
-bool RTC_ReceiveTimeFromTerminal(UART_HandleTypeDef *huart);
+bool RTC_ReceiveTimeFromTerminal(UART_HandleTypeDef * huart);
 
 /**
  * @brief Establece una fecha y hora fija para pruebas del RTC.

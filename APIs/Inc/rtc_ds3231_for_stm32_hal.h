@@ -31,7 +31,7 @@
 #ifndef RTC_DS3231_FOR_STM32_HAL_H_
 #define RTC_DS3231_FOR_STM32_HAL_H_
 /** @file
- ** @brief 
+ ** @brief
  **/
 
 /* === Headers files inclusions ================================================================ */
@@ -60,14 +60,13 @@ extern "C" {
 /* === Estructura de fecha y hora ============================================================= */
 
 typedef struct {
-    uint8_t seconds;  /**< Segundos (0–59) */
-    uint8_t minutes;  /**< Minutos (0–59) */
-    uint8_t hours;    /**< Horas (0–23) */
-    uint8_t day;      /**< Día del mes (1–31) */
-    uint8_t month;    /**< Mes (1–12) */
-    uint16_t year;    /**< Año (e.g. 2025) */
+    uint8_t seconds; /**< Segundos (0–59) */
+    uint8_t minutes; /**< Minutos (0–59) */
+    uint8_t hours;   /**< Horas (0–23) */
+    uint8_t day;     /**< Día del mes (1–31) */
+    uint8_t month;   /**< Mes (1–12) */
+    uint16_t year;   /**< Año (e.g. 2025) */
 } DS3231_DateTime;
-
 
 typedef struct {
     uint8_t hour;
@@ -84,7 +83,7 @@ typedef struct {
  * @brief Inicializa el DS3231 con el manejador I2C especificado.
  * @param hi2c Puntero al manejador I2C configurado.
  */
-void DS3231_Init(I2C_HandleTypeDef *hi2c);
+void DS3231_Init(I2C_HandleTypeDef * hi2c);
 
 /**
  * @brief Verifica si el DS3231 responde en el bus I2C.
@@ -98,13 +97,12 @@ bool DS3231_IsConnected(void);
  * @param[out] dt Puntero a una estructura donde se almacenarán los datos.
  */
 
-bool DS3231_GetDateTime(DS3231_DateTime *dt);
-
+bool DS3231_GetDateTime(DS3231_DateTime * dt);
 
 /**
-*@brief actualizar fecha y hora
-*/
-bool DS3231_SetDateTime(const DS3231_DateTime *dt);
+ *@brief actualizar fecha y hora
+ */
+bool DS3231_SetDateTime(const DS3231_DateTime * dt);
 
 /**
  * @brief Obtiene la temperatura interna del DS3231.
@@ -146,7 +144,7 @@ uint8_t DS3231_EncodeBCD(uint8_t dec);
  * @brief Interfaz por UART para configurar la hora manualmente.
  * Espera un formato: YYYY-MM-DD HH:MM:SS\n
  */
-void rtc_set_time_from_uart(const char *input_str);
+void rtc_set_time_from_uart(const char * input_str);
 
 /**
  * @brief Establece una fecha/hora fija predefinida en el RTC para propósitos de prueba.
@@ -167,7 +165,6 @@ void rtc_set_test_time(void);
  */
 DS3231_DateTime rtc_get_compile_time(void);
 
-
 /**
  * @brief Establece la fecha y hora en el RTC DS3231 utilizando estructuras HAL.
  *
@@ -181,8 +178,7 @@ DS3231_DateTime rtc_get_compile_time(void);
  * @retval true Si la operación de escritura fue exitosa.
  * @retval false Si ocurrió un error al escribir en el RTC.
  */
-bool RTC_DS3231_Set(RTC_DateTypeDef *date, RTC_TimeTypeDef *time);
-
+bool RTC_DS3231_Set(RTC_DateTypeDef * date, RTC_TimeTypeDef * time);
 
 /**
  * @brief Obtiene la fecha y hora actuales desde el RTC DS3231 en formato HAL.
@@ -196,19 +192,14 @@ bool RTC_DS3231_Set(RTC_DateTypeDef *date, RTC_TimeTypeDef *time);
  * @retval true Si la lectura fue exitosa.
  * @retval false Si ocurrió un error al leer desde el RTC.
  */
-bool RTC_DS3231_Get(RTC_DateTypeDef *date, RTC_TimeTypeDef *time);
+bool RTC_DS3231_Get(RTC_DateTypeDef * date, RTC_TimeTypeDef * time);
 
+bool ds3231_get_time(uint8_t * hour, uint8_t * min, uint8_t * sec);
 
-bool ds3231_get_time(uint8_t *hour, uint8_t *min, uint8_t *sec);
+bool ds3231_get_date(uint8_t * day, uint8_t * month, uint16_t * year);
 
-bool ds3231_get_date(uint8_t *day, uint8_t *month, uint16_t *year);
-
-bool ds3231_get_datetime(ds3231_time_t *dt);
-
-
-
+bool ds3231_get_datetime(ds3231_time_t * dt);
 
 /* === End of documentation ==================================================================== */
-
 
 #endif /* RTC_DS3231_FOR_STM32_HAL_H_ */

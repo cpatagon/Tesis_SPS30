@@ -43,9 +43,9 @@ extern "C" {
  * @brief Estructura que representa un sensor SPS30 con su configuración asociada.
  */
 typedef struct {
-    SPS30 sensor;                  /**< Objeto de comunicación SPS30 */
-    uint8_t id;                    /**< ID único del sensor */
-    UART_HandleTypeDef* uart;      /**< UART asociada al sensor */
+    SPS30 sensor;              /**< Objeto de comunicación SPS30 */
+    uint8_t id;                /**< ID único del sensor */
+    UART_HandleTypeDef * uart; /**< UART asociada al sensor */
 } SensorSPS30;
 
 /* === Declaraciones públicas de variables ==================================================== */

@@ -17,15 +17,15 @@
 #include <string.h>
 
 /* === Definición de funciones ============================================================= */
-bool proceso_observador(SPS30* sensor, uint8_t sensor_id) {
+bool proceso_observador(SPS30 * sensor, uint8_t sensor_id) {
     // Obtener timestamp actual
     char datetime_buffer[32];
     time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
 
-    return proceso_observador_with_time(sensor,  sensor_id, datetime_buffer);
+    return proceso_observador_with_time(sensor, sensor_id, datetime_buffer);
 }
 
-bool proceso_observador_with_time(SPS30* sensor, uint8_t sensor_id, const char* datetime_str) {
+bool proceso_observador_with_time(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str) {
     int reintentos = NUM_REINT;
 
     while (reintentos--) {
@@ -38,12 +38,12 @@ bool proceso_observador_with_time(SPS30* sensor, uint8_t sensor_id, const char* 
         if ((pm.pm1_0 > CONC_MIN_PM && pm.pm1_0 < CONC_MAX_PM) ||
             (pm.pm2_5 > CONC_MIN_PM && pm.pm2_5 < CONC_MAX_PM) ||
             (pm.pm4_0 > CONC_MIN_PM && pm.pm4_0 < CONC_MAX_PM) ||
-            (pm.pm10  > CONC_MIN_PM && pm.pm10  < CONC_MAX_PM)) {
+            (pm.pm10 > CONC_MIN_PM && pm.pm10 < CONC_MAX_PM)) {
 
             // Formatear mensaje para UART
             char buffer[BUFFER_SIZE_MSG_PM_FORMAT];
-            snprintf(buffer, sizeof(buffer), MSG_PM_FORMAT_WITH_TIME,
-                     datetime_str, sensor_id, pm.pm1_0, pm.pm2_5, pm.pm4_0, pm.pm10);
+            snprintf(buffer, sizeof(buffer), MSG_PM_FORMAT_WITH_TIME, datetime_str, sensor_id,
+                     pm.pm1_0, pm.pm2_5, pm.pm4_0, pm.pm10);
             uart_print("%s", buffer);
 
             // ⬇️ Crear estructura de datos para almacenamiento
@@ -53,12 +53,11 @@ bool proceso_observador_with_time(SPS30* sensor, uint8_t sensor_id, const char* 
                 .pm2_5 = pm.pm2_5,
                 .pm4_0 = pm.pm4_0,
                 .pm10 = pm.pm10,
-                .temp = 0.0,     // Aquí podrías integrar sensor DHT22 si ya está disponible
-                .hum = 0.0
-            };
+                .temp = 0.0, // Aquí podrías integrar sensor DHT22 si ya está disponible
+                .hum = 0.0};
             strncpy(data.timestamp, datetime_str, sizeof(data.timestamp));
 
-            log_data_to_sd(&data);  // <== Guardar en microSD
+            log_data_to_sd(&data); // <== Guardar en microSD
 
             return true;
         }

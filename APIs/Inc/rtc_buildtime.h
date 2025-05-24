@@ -2,20 +2,20 @@
  * Nombre del archivo: rtc_buildtime.h
  * Descripción: [Breve descripción del archivo]
  * Autor: lgomez
- * Creado en: May 15, 2025 
+ * Creado en: May 15, 2025
  * Derechos de Autor: (C) 2023 [Tu nombre o el de tu organización]
  * Licencia: GNU General Public License v3.0
- * 
+ *
  * Este programa es software libre: puedes redistribuirlo y/o modificarlo
  * bajo los términos de la Licencia Pública General GNU publicada por
  * la Free Software Foundation, ya sea la versión 3 de la Licencia, o
  * (a tu elección) cualquier versión posterior.
- * 
+ *
  * Este programa se distribuye con la esperanza de que sea útil,
  * pero SIN NINGUNA GARANTÍA; sin siquiera la garantía implícita
  * de COMERCIABILIDAD o APTITUD PARA UN PROPÓSITO PARTICULAR. Ver la
  * Licencia Pública General GNU para más detalles.
- * 
+ *
  * Deberías haber recibido una copia de la Licencia Pública General GNU
  * junto con este programa. Si no es así, visita <http://www.gnu.org/licenses/>.
  *
@@ -25,13 +25,11 @@
 #ifndef INC_RTC_BUILDTIME_H_
 #define INC_RTC_BUILDTIME_H_
 /** @file
- ** @brief 
+ ** @brief
  **/
 
 /* === Headers files inclusions ================================================================ */
 #include <stdint.h>
-
-
 
 /* === Cabecera C++ ============================================================================ */
 #ifdef __cplusplus
@@ -45,7 +43,6 @@ extern "C" {
 /* === Public variable declarations ============================================================ */
 
 /* === Public function declarations ============================================================ */
-
 
 /**
  * @brief Establece el RTC con la fecha y hora de compilación (__DATE__, __TIME__).

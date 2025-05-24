@@ -135,7 +135,7 @@
  * @return Verdadero si el valor está dentro del rango; falso en caso contrario.
  */
 bool maskIsDataTrue(float data) {
-	 return (data > MP_MIN_VALUE) && (data <= MP_MAX_VALUE);
+    return (data > MP_MIN_VALUE) && (data <= MP_MAX_VALUE);
 }
 
 /**
@@ -235,12 +235,12 @@ float findMaxValue(float data[], int n_data) {
     if (isArrayEmpty(data, n_data))
         return MSN_VOID_ARRAY_VALUE; // Manejo de array vacío
     float value = data[START_LOCATION];
-    //int location = START_LOCATION;
+    // int location = START_LOCATION;
     for (int i = 1; i < n_data; i++) {
         if (maskIsDataTrue(data[i])) { // salta valores negativos o iguales a 0
             if (value < data[i]) {
                 value = data[i];
-      //          location = i;
+                //          location = i;
             }
         }
     }
@@ -263,12 +263,12 @@ float findMinValue(float data[], int n_data) {
     if (isArrayEmpty(data, n_data))
         return MSN_VOID_ARRAY_VALUE; // Manejo de array vacío
     float value = data[START_LOCATION];
-   // int location = START_LOCATION;
+    // int location = START_LOCATION;
     for (int i = 1; i < n_data; i++) {
         if (maskIsDataTrue(data[i])) { // salta valores negativos o iguales a 0
             if (value > data[i]) {
                 value = data[i];
-             //   location = i;
+                //   location = i;
             }
         }
     }

@@ -27,7 +27,7 @@
 
 #ifndef RTC_DS1307_FOR_STM32_HAL_H
 #define RTC_DS1307_FOR_STM32_HAL_H
-//#include "main.h"
+// #include "main.h"
 
 #include "i2c.h"
 #include <stdbool.h>
@@ -39,51 +39,49 @@
 
 /* === Headers files inclusions ================================================================ */
 
-
 /** @brief Dirección I2C del DS1307. */
-#define DS1307_I2C_ADDR    0x68
+#define DS1307_I2C_ADDR 0x68
 
 /** @brief Dirección del registro de segundos del DS1307. */
-#define DS1307_REG_SECOND  0x00
+#define DS1307_REG_SECOND 0x00
 
 /** @brief Dirección del registro de minutos del DS1307. */
-#define DS1307_REG_MINUTE  0x01
+#define DS1307_REG_MINUTE 0x01
 
 /** @brief Dirección del registro de horas del DS1307. */
-#define DS1307_REG_HOUR    0x02
+#define DS1307_REG_HOUR 0x02
 
 /** @brief Dirección del registro del día de la semana del DS1307. */
-#define DS1307_REG_DOW     0x03
+#define DS1307_REG_DOW 0x03
 
 /** @brief Dirección del registro de fecha (día del mes) del DS1307. */
-#define DS1307_REG_DATE    0x04
+#define DS1307_REG_DATE 0x04
 
 /** @brief Dirección del registro del mes del DS1307. */
-#define DS1307_REG_MONTH   0x05
+#define DS1307_REG_MONTH 0x05
 
 /** @brief Dirección del registro del año del DS1307. */
-#define DS1307_REG_YEAR    0x06
+#define DS1307_REG_YEAR 0x06
 
 /** @brief Dirección del registro de control del DS1307. */
 #define DS1307_REG_CONTROL 0x07
 
 /** @brief Dirección del registro de la hora UTC del DS1307. */
-#define DS1307_REG_UTC_HR  0x08
+#define DS1307_REG_UTC_HR 0x08
 
 /** @brief Dirección del registro de minutos UTC del DS1307. */
 #define DS1307_REG_UTC_MIN 0x09
 
 /** @brief Dirección del registro de siglo del DS1307. */
-#define DS1307_REG_CENT    0x10
+#define DS1307_REG_CENT 0x10
 
 /** @brief Dirección del registro de RAM del DS1307. */
-#define DS1307_REG_RAM     0x11
+#define DS1307_REG_RAM 0x11
 
 /** @brief Tiempo de espera para las operaciones de comunicación I2C con DS1307. */
-#define DS1307_TIMEOUT     1000
+#define DS1307_TIMEOUT 1000
 
-
-#define DS1307_ADDRESS 0x68  // Dirección I2C del DS1307/DS3231
+#define DS1307_ADDRESS 0x68 // Dirección I2C del DS1307/DS3231
 
 /* === Cabecera C++ ============================================================================ */
 #ifdef __cplusplus
@@ -116,21 +114,23 @@ typedef struct {
  * @brief Puntero global al manejador de I2C utilizado por el DS1307.
  *
  * Este puntero se debe inicializar en la aplicación antes de llamar a DS1307_Init para
- * asegurar que las funciones de este módulo puedan comunicarse correctamente con el hardware del DS1307.
+ * asegurar que las funciones de este módulo puedan comunicarse correctamente con el hardware del
+ * DS1307.
  */
 extern I2C_HandleTypeDef * _ds1307_ui2c;
 
 /**
- * @brief Enumeración de las tasas de interrupción disponibles para la salida de onda cuadrada del DS1307.
+ * @brief Enumeración de las tasas de interrupción disponibles para la salida de onda cuadrada del
+ * DS1307.
  *
- * Estos valores configuran la frecuencia de la onda cuadrada generada por el DS1307, la cual puede ser
- * útil para tareas de temporización externa o para generar interrupciones periódicas.
+ * Estos valores configuran la frecuencia de la onda cuadrada generada por el DS1307, la cual puede
+ * ser útil para tareas de temporización externa o para generar interrupciones periódicas.
  */
 typedef enum DS1307_Rate {
-    DS1307_1HZ,     /**< Onda cuadrada a 1 Hz */
-    DS1307_4096HZ,  /**< Onda cuadrada a 4096 Hz */
-    DS1307_8192HZ,  /**< Onda cuadrada a 8192 Hz */
-    DS1307_32768HZ  /**< Onda cuadrada a 32768 Hz */
+    DS1307_1HZ,    /**< Onda cuadrada a 1 Hz */
+    DS1307_4096HZ, /**< Onda cuadrada a 4096 Hz */
+    DS1307_8192HZ, /**< Onda cuadrada a 8192 Hz */
+    DS1307_32768HZ /**< Onda cuadrada a 32768 Hz */
 } DS1307_Rate;
 
 /**
@@ -144,7 +144,6 @@ typedef enum DS1307_SquareWaveEnable {
     DS1307_DISABLED, /**< Salida de onda cuadrada deshabilitada */
     DS1307_ENABLED   /**< Salida de onda cuadrada habilitada */
 } DS1307_SquareWaveEnable;
-
 
 /**
  * @brief Inicializa el módulo DS1307.
@@ -165,7 +164,8 @@ void DS1307_SetClockHalt(uint8_t halt);
 /**
  * @brief Obtiene el estado actual del bit de parada del reloj del DS1307.
  *
- * @return Estado del bit de parada del reloj: 0 si el reloj está en funcionamiento, 1 si está detenido.
+ * @return Estado del bit de parada del reloj: 0 si el reloj está en funcionamiento, 1 si está
+ * detenido.
  */
 uint8_t DS1307_GetClockHalt(void);
 
@@ -191,7 +191,8 @@ uint8_t DS1307_GetRegByte(uint8_t regAddr);
  * @brief Habilita o deshabilita la salida de onda cuadrada del DS1307.
  *
  * Configura el pin SQW/OUT para emitir una onda cuadrada o para permanecer bajo.
- * @param mode Modo de la onda cuadrada: DS1307_DISABLED para desactivar, DS1307_ENABLED para activar.
+ * @param mode Modo de la onda cuadrada: DS1307_DISABLED para desactivar, DS1307_ENABLED para
+ * activar.
  */
 void DS1307_SetEnableSquareWave(DS1307_SquareWaveEnable mode);
 
@@ -202,7 +203,6 @@ void DS1307_SetEnableSquareWave(DS1307_SquareWaveEnable mode);
  * @param rate Frecuencia de la onda cuadrada a configurar.
  */
 void DS1307_SetInterruptRate(DS1307_Rate rate);
-
 
 /**
  * @brief Obtiene el día actual de la semana del DS1307.
@@ -231,18 +231,17 @@ uint8_t DS1307_GetMonth(void);
 /**
  * @brief Obtiene el año actual del DS1307.
  *
- * Devuelve el año completo actual almacenado en el DS1307. La función combina el registro de centuria
- * y el registro de año para formar un número de cuatro dígitos.
+ * Devuelve el año completo actual almacenado en el DS1307. La función combina el registro de
+ * centuria y el registro de año para formar un número de cuatro dígitos.
  * @return Año actual, que abarca desde 2000 hasta 2099.
  */
 uint16_t DS1307_GetYear(void);
 
-
 /**
  * @brief Obtiene la hora actual en formato de 24 horas del DS1307.
  *
- * Esta función devuelve la hora actual almacenada en el DS1307. El formato retornado es de 24 horas,
- * oscilando entre 0 y 23.
+ * Esta función devuelve la hora actual almacenada en el DS1307. El formato retornado es de 24
+ * horas, oscilando entre 0 y 23.
  * @return Hora actual, en el rango de 0 a 23.
  */
 uint8_t DS1307_GetHour(void);
@@ -258,7 +257,8 @@ uint8_t DS1307_GetMinute(void);
 /**
  * @brief Obtiene los segundos actuales del DS1307.
  *
- * Devuelve los segundos actuales del DS1307, que varían de 0 a 59. Esta función excluye el bit de parada del reloj.
+ * Devuelve los segundos actuales del DS1307, que varían de 0 a 59. Esta función excluye el bit de
+ * parada del reloj.
  * @return Segundos actuales, en el rango de 0 a 59.
  */
 uint8_t DS1307_GetSecond(void);
@@ -276,11 +276,11 @@ int8_t DS1307_GetTimeZoneHour(void);
  * @brief Obtiene los minutos de la zona horaria UTC almacenada en el DS1307.
  *
  * Devuelve los minutos de ajuste para la zona horaria UTC configurada en el DS1307.
- * Esto puede ser útil para ajustes de zona horaria que incluyen minutos, como la zona horaria de Nepal (UTC+5:45).
+ * Esto puede ser útil para ajustes de zona horaria que incluyen minutos, como la zona horaria de
+ * Nepal (UTC+5:45).
  * @return Minutos de ajuste de la zona horaria UTC, en el rango de 0 a 59.
  */
 uint8_t DS1307_GetTimeZoneMin(void);
-
 
 /**
  * @brief Establece el día de la semana en el DS1307.
@@ -314,7 +314,6 @@ void DS1307_SetMonth(uint8_t month);
  */
 void DS1307_SetYear(uint16_t year);
 
-
 /**
  * @brief Establece la hora en el DS1307.
  *
@@ -343,20 +342,19 @@ void DS1307_SetSecond(uint8_t second);
  * @brief Establece la zona horaria UTC en el DS1307.
  *
  * Configura la compensación de la zona horaria UTC en el DS1307. Esto es útil para ajustar el reloj
- * a la hora local considerando la diferencia con la hora UTC. La hora se puede ajustar desde -12 hasta +12,
- * y los minutos desde 0 hasta 59.
+ * a la hora local considerando la diferencia con la hora UTC. La hora se puede ajustar desde -12
+ * hasta +12, y los minutos desde 0 hasta 59.
  * @param hr Diferencia de horas respecto a UTC, puede ser negativa o positiva, rango de -12 a 12.
  * @param min Diferencia de minutos respecto a UTC, rango de 0 a 59.
  */
 void DS1307_SetTimeZone(int8_t hr, uint8_t min);
 
-
 /**
  * @brief Decodifica un valor en formato BCD a decimal.
  *
- * Esta función convierte un valor almacenado en formato BCD (Binary-Coded Decimal) a su equivalente decimal.
- * El formato BCD permite representar cada dígito de un número decimal en un nibble (4 bits), facilitando operaciones
- * aritméticas en sistemas que manipulan datos digitales.
+ * Esta función convierte un valor almacenado en formato BCD (Binary-Coded Decimal) a su equivalente
+ * decimal. El formato BCD permite representar cada dígito de un número decimal en un nibble (4
+ * bits), facilitando operaciones aritméticas en sistemas que manipulan datos digitales.
  * @param bin Valor en formato BCD que se desea convertir.
  * @return Valor decimal equivalente al número BCD proporcionado.
  */
@@ -365,9 +363,9 @@ uint8_t DS1307_DecodeBCD(uint8_t bin);
 /**
  * @brief Codifica un valor decimal a formato BCD.
  *
- * Esta función convierte un número decimal a su representación en formato BCD (Binary-Coded Decimal).
- * Este formato es útil para la comunicación con ciertos dispositivos de hardware, como el DS1307, que
- * requieren que los datos numéricos sean enviados en formato BCD.
+ * Esta función convierte un número decimal a su representación en formato BCD (Binary-Coded
+ * Decimal). Este formato es útil para la comunicación con ciertos dispositivos de hardware, como el
+ * DS1307, que requieren que los datos numéricos sean enviados en formato BCD.
  * @param dec Número decimal que se desea convertir a BCD.
  * @return Valor en formato BCD equivalente al número decimal proporcionado.
  */
