@@ -90,6 +90,8 @@ extern "C" {
 /** @brief Pulso para despertar el SPS30 del modo de sueño. */
 #define SPS30_PULSE_WAKE_UP 0xFF
 
+#define SERIAL_BUFFER_LEN   33
+
 /* === Public data type declarations =========================================================== */
 
 // Declaración de la estructura SPS30
@@ -97,8 +99,10 @@ typedef struct SPS30 SPS30;
 
 // Declara externamente el manejador de UART, asumiendo que se define en otro lugar
 // Estructura que representa el objeto SPS30
-struct SPS30 {
-    UART_HandleTypeDef * huart; // Manejador de UART
+typedef struct SPS30 {
+    UART_HandleTypeDef * huart;
+    char serial_buf[SERIAL_BUFFER_LEN]; // <--- Buffer para guardar número de serie
+
     // Métodos
     void (*send_command)(struct SPS30 * self, const uint8_t * command, uint16_t commandSize);
     void (*receive_async)(struct SPS30 * self, uint8_t * dataBuffer, uint16_t bufferSize);
@@ -111,7 +115,7 @@ struct SPS30 {
     void (*serial_number)(struct SPS30 * self);
     void (*wake_up)(struct SPS30 * self);
     ConcentracionesPM (*get_concentrations)(struct SPS30 * self);
-};
+} SPS30;
 /* === Public variable declarations ============================================================ */
 
 /* === Public function declarations ============================================================ */

@@ -1,1 +1,1 @@
-rtc_buildtime.c:56:6:RTC_SetFromBuildTime	3
+rtc_buildtime.c:52:6:RTC_SetFromBuildTime	3

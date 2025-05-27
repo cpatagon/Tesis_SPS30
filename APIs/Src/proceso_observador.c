@@ -11,10 +11,13 @@
 
 /* === Inclusión de archivos =============================================================== */
 #include "proceso_observador.h"
+#include "rtc_ds3231_for_stm32_hal.h" // para ds3231_get_datetime()
 #include "data_logger.h"
 #include "time_rtc.h"
 #include <stdio.h>
 #include <string.h>
+
+#include "ParticulateDataAnalyzer.h"
 
 /* === Definición de funciones ============================================================= */
 bool proceso_observador(SPS30 * sensor, uint8_t sensor_id) {
@@ -40,24 +43,35 @@ bool proceso_observador_with_time(SPS30 * sensor, uint8_t sensor_id, const char 
             (pm.pm4_0 > CONC_MIN_PM && pm.pm4_0 < CONC_MAX_PM) ||
             (pm.pm10 > CONC_MIN_PM && pm.pm10 < CONC_MAX_PM)) {
 
-            // Formatear mensaje para UART
+            // ⏱ Obtener hora actual
+            ds3231_time_t dt;
+            if (!ds3231_get_datetime(&dt)) {
+                uart_print("⚠️ Error leyendo hora del RTC\r\n");
+                return false;
+            }
+
+            // 🧱 Formatear para UART
             char buffer[BUFFER_SIZE_MSG_PM_FORMAT];
             snprintf(buffer, sizeof(buffer), MSG_PM_FORMAT_WITH_TIME, datetime_str, sensor_id,
                      pm.pm1_0, pm.pm2_5, pm.pm4_0, pm.pm10);
             uart_print("%s", buffer);
 
-            // ⬇️ Crear estructura de datos para almacenamiento
-            ParticulateData data = {
-                .sensor_id = sensor_id,
-                .pm1_0 = pm.pm1_0,
-                .pm2_5 = pm.pm2_5,
-                .pm4_0 = pm.pm4_0,
-                .pm10 = pm.pm10,
-                .temp = 0.0, // Aquí podrías integrar sensor DHT22 si ya está disponible
-                .hum = 0.0};
-            strncpy(data.timestamp, datetime_str, sizeof(data.timestamp));
+            // 📦 Llenar estructura de datos para almacenamiento
+            ParticulateData data = {.sensor_id = sensor_id,
+                                    .pm1_0 = pm.pm1_0,
+                                    .pm2_5 = pm.pm2_5,
+                                    .pm4_0 = pm.pm4_0,
+                                    .pm10 = pm.pm10,
+                                    .temp = 0.0f,
+                                    .hum = 0.0f,
+                                    .year = dt.year,
+                                    .month = dt.month,
+                                    .day = dt.day,
+                                    .hour = dt.hour,
+                                    .min = dt.min,
+                                    .sec = dt.sec};
 
-            log_data_to_sd(&data); // <== Guardar en microSD
+            data_logger_store_raw(&data); // 💾 Guardar como archivo RAW
 
             return true;
         }

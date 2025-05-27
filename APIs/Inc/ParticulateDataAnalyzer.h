@@ -27,8 +27,6 @@
  *
  */
 
-#include <stdint.h>
-
 #ifndef PARTICULATEDATAANALYZER_H
 #define PARTICULATEDATAANALYZER_H
 
@@ -45,6 +43,9 @@
  *
  * Adecuado para sistemas de monitoreo de calidad del aire.
  */
+
+#include <stdint.h>
+#include <stddef.h> // ⬅️ Esto es obligatorio para usar size_t
 
 /* === Headers files inclusions ================================================================ */
 /**
@@ -81,6 +82,24 @@ extern "C" {
 /* === Public macros definitions =============================================================== */
 
 /* === Public data type declarations =========================================================== */
+
+typedef struct {
+    uint8_t sensor_id;
+    float pm1_0;
+    float pm2_5;
+    float pm4_0;
+    float pm10;
+    float temp;
+    float hum;
+
+    // Nuevos campos necesarios para guardar en RAW
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t hour;
+    uint8_t min;
+    uint8_t sec;
+} ParticulateData;
 
 /* === Public variable declarations ============================================================ */
 
@@ -141,6 +160,8 @@ float findMinValue(float data[], int n_data);
  *         elementos válidos es menor o igual a 1 o si el array está vacío.
  */
 float calculateStandardDeviation(float data[], int n);
+
+void build_iso8601_timestamp(char * buffer, size_t len, const ParticulateData * data);
 
 /* === End of documentation ==================================================================== */
 

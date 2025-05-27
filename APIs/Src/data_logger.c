@@ -36,6 +36,7 @@
 #include "fatfs.h"
 #include "fatfs_sd.h"
 #include "microSD.h"
+#include "microSD_utils.h"
 
 #include "rtc.h"
 #include "data_logger.h"
@@ -45,6 +46,10 @@
 #include "ff.h"
 
 #include "rtc_ds3231_for_stm32_hal.h"
+
+#include "ParticulateDataAnalyzer.h"
+
+#include "mp_sensors_info.h"
 
 /* === Macros definitions ====================================================================== */
 
@@ -255,9 +260,12 @@ FRESULT guardar_promedio_csv(float pm1_0, float pm2_5, float pm4_0, float pm10, 
  * @return true si el formateo fue exitoso, false si hubo error de espacio
  */
 bool format_csv_line(const ParticulateData * data, char * csv_line, size_t max_len) {
-    int written = snprintf(csv_line, max_len, "%s,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f\n",
-                           data->timestamp, data->sensor_id, data->pm1_0, data->pm2_5, data->pm4_0,
-                           data->pm10, data->temp, data->hum);
+    char timestamp[32];
+    build_iso8601_timestamp(timestamp, sizeof(timestamp), data);
+
+    int written = snprintf(csv_line, max_len, "%s,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f\n", timestamp,
+                           data->sensor_id, data->pm1_0, data->pm2_5, data->pm4_0, data->pm10,
+                           data->temp, data->hum);
 
     return (written > 0 && (size_t)written < max_len);
 }
@@ -281,65 +289,80 @@ bool build_csv_filepath_from_datetime(char * filepath, size_t max_len) {
     return (written > 0 && (size_t)written < max_len);
 }
 
-bool log_data_to_sd(const ParticulateData * data) {
+bool crear_directorio_fecha(const ds3231_time_t * dt) {
+    char dirpath[64];
 
+    snprintf(dirpath, sizeof(dirpath), "/%04d", dt->year);
+    if (f_mkdir(dirpath) != FR_OK && f_stat(dirpath, NULL) != FR_OK)
+        return false;
+
+    snprintf(dirpath, sizeof(dirpath), "/%04d/%02d", dt->year, dt->month);
+    if (f_mkdir(dirpath) != FR_OK && f_stat(dirpath, NULL) != FR_OK)
+        return false;
+
+    snprintf(dirpath, sizeof(dirpath), "/%04d/%02d/%02d", dt->year, dt->month, dt->day);
+    if (f_mkdir(dirpath) != FR_OK && f_stat(dirpath, NULL) != FR_OK)
+        return false;
+
+    return true;
+}
+
+bool obtener_ruta_archivo(const ds3231_time_t * dt, const char * nombre_archivo, char * filepath,
+                          size_t len) {
+    int n =
+        snprintf(filepath, len, "/%04d/%02d/%02d/%s", dt->year, dt->month, dt->day, nombre_archivo);
+    return n > 0 && (size_t)n < len;
+}
+
+bool escribir_linea_csv(const char * filepath, const char * linea) {
+    FIL file;
+    FRESULT res = f_open(&file, filepath, FA_OPEN_ALWAYS | FA_WRITE);
+    if (res != FR_OK)
+        return false;
+
+    f_lseek(&file, f_size(&file));
+
+    UINT written;
+    res = f_write(&file, linea, strlen(linea), &written);
+    f_close(&file);
+
+    return (res == FR_OK && written == strlen(linea));
+}
+
+bool log_data_to_sd(const ParticulateData * data) {
     if (!sd_mounted) {
         if (!data_logger_init())
             return false;
     }
 
-    FRESULT res;
-    FIL file;
-    char filepath[64];
-    char csv_line[CSV_LINE_BUFFER_SIZE];
-    char dirpath[32];
     ds3231_time_t dt;
-
     if (!ds3231_get_datetime(&dt)) {
         uart_print("Error al obtener la hora del DS3231\r\n");
         return false;
     }
 
-    // Crear ruta de directorio
-    snprintf(dirpath, sizeof(dirpath), "/%04d", dt.year);
-    f_mkdir(dirpath);
+    if (!crear_directorio_fecha(&dt)) {
+        uart_print("Error al crear carpetas por fecha\r\n");
+        return false;
+    }
 
-    snprintf(dirpath, sizeof(dirpath), "/%04d/%02d", dt.year, dt.month);
-    f_mkdir(dirpath);
+    char filepath[64];
+    if (!obtener_ruta_archivo(&dt, "RAW.csv", filepath, sizeof(filepath))) {
+        uart_print("Error al generar nombre de archivo\r\n");
+        return false;
+    }
 
-    snprintf(dirpath, sizeof(dirpath), "/%04d/%02d/%02d", dt.year, dt.month, dt.day);
-    f_mkdir(dirpath);
-
-    // Ruta final de archivo
-    snprintf(filepath, sizeof(filepath), "/%04d/%02d/%02d/DATA_%02d%02d%02d.CSV", dt.year, dt.month,
-             dt.day, dt.hour, dt.min, dt.sec);
-
-    // Generar línea CSV
+    char csv_line[CSV_LINE_BUFFER_SIZE];
     if (!format_csv_line(data, csv_line, sizeof(csv_line))) {
         uart_print("Error al generar línea CSV\r\n");
         return false;
     }
 
-    // Abrir archivo
-    res = f_open(&file, filepath, FA_OPEN_ALWAYS | FA_WRITE);
-    if (res != FR_OK) {
-        uart_print("No se pudo abrir archivo para escribir\r\n");
-        return false;
-    }
-
-    // Mover al final
-    f_lseek(&file, f_size(&file));
-
-    // Escribir
-    UINT written;
-    res = f_write(&file, csv_line, strlen(csv_line), &written);
-    if (res != FR_OK || written != strlen(csv_line)) {
+    if (!escribir_linea_csv(filepath, csv_line)) {
         uart_print("Fallo al escribir en microSD\r\n");
-        f_close(&file);
         return false;
     }
 
-    f_close(&file);
     uart_print("Línea escrita en SD:\r\n");
     uart_print(csv_line);
     return true;
@@ -352,55 +375,55 @@ void print_fatfs_error(FRESULT res) {
 
     switch (res) {
     case FR_OK:
-        uart_print("✔ FR_OK: Operación exitosa\r\n");
+        uart_print("FR_OK: Operacion exitosa\r\n");
         break;
     case FR_DISK_ERR:
-        uart_print("❌ FR_DISK_ERR: Error físico en el disco\r\n");
+        uart_print("FR_DISK_ERR: Error fisico en el disco\r\n");
         break;
     case FR_INT_ERR:
-        uart_print("❌ FR_INT_ERR: Error interno de FatFs\r\n");
+        uart_print("FR_INT_ERR: Error interno de FatFs\r\n");
         break;
     case FR_NOT_READY:
-        uart_print("❌ FR_NOT_READY: Disco no está listo\r\n");
+        uart_print("FR_NOT_READY: Disco no esta listo\r\n");
         break;
     case FR_NO_FILE:
-        uart_print("❌ FR_NO_FILE: Archivo no encontrado\r\n");
+        uart_print("FR_NO_FILE: Archivo no encontrado\r\n");
         break;
     case FR_NO_PATH:
-        uart_print("❌ FR_NO_PATH: Ruta no encontrada\r\n");
+        uart_print("FR_NO_PATH: Ruta no encontrada\r\n");
         break;
     case FR_INVALID_NAME:
-        uart_print("❌ FR_INVALID_NAME: Nombre inválido\r\n");
+        uart_print("FR_INVALID_NAME: Nombre inválido\r\n");
         break;
     case FR_DENIED:
-        uart_print("❌ FR_DENIED: Acceso denegado\r\n");
+        uart_print("FR_DENIED: Acceso denegado\r\n");
         break;
     case FR_EXIST:
-        uart_print("❌ FR_EXIST: Archivo ya existe\r\n");
+        uart_print("FR_EXIST: Archivo ya existe\r\n");
         break;
     case FR_INVALID_OBJECT:
-        uart_print("❌ FR_INVALID_OBJECT: Objeto inválido\r\n");
+        uart_print("FR_INVALID_OBJECT: Objeto invalido\r\n");
         break;
     case FR_WRITE_PROTECTED:
-        uart_print("❌ FR_WRITE_PROTECTED: Tarjeta protegida contra escritura\r\n");
+        uart_print("FR_WRITE_PROTECTED: Tarjeta protegida contra escritura\r\n");
         break;
     case FR_INVALID_DRIVE:
-        uart_print("❌ FR_INVALID_DRIVE: Unidad inválida\r\n");
+        uart_print("FR_INVALID_DRIVE: Unidad invalida\r\n");
         break;
     case FR_NOT_ENABLED:
-        uart_print("❌ FR_NOT_ENABLED: FatFs no está habilitado\r\n");
+        uart_print("FR_NOT_ENABLED: FatFs no esta habilitado\r\n");
         break;
     case FR_NO_FILESYSTEM:
-        uart_print("❌ FR_NO_FILESYSTEM: No hay sistema de archivos FAT válido\r\n");
+        uart_print("FR_NO_FILESYSTEM: No hay sistema de archivos FAT valido\r\n");
         break;
     case FR_TIMEOUT:
-        uart_print("❌ FR_TIMEOUT: Timeout de acceso\r\n");
+        uart_print("FR_TIMEOUT: Timeout de acceso\r\n");
         break;
     case FR_LOCKED:
-        uart_print("❌ FR_LOCKED: El archivo está bloqueado\r\n");
+        uart_print("FR_LOCKED: El archivo esta bloqueado\r\n");
         break;
     default:
-        uart_print("❌ Código de error desconocido\r\n");
+        uart_print("Codigo de error desconocido\r\n");
         break;
     }
 }
@@ -409,14 +432,14 @@ bool data_logger_write_csv_line(const ParticulateData * data) {
     char line[CSV_LINE_BUFFER_SIZE];
 
     if (!format_csv_line(data, line, sizeof(line))) {
-        uart_print("❌ Error formateando línea CSV\r\n");
+        uart_print("Error formateando línea CSV\r\n");
         return false;
     }
 
     // Ruta de archivo
     char path[128];
     if (!build_csv_filepath_from_datetime(path, sizeof(path))) {
-        uart_print("❌ Error generando ruta de archivo CSV\r\n");
+        uart_print("Error generando ruta de archivo CSV\r\n");
         return false;
     }
 
@@ -426,7 +449,7 @@ bool data_logger_write_csv_line(const ParticulateData * data) {
     FIL file;
     FRESULT res = f_open(&file, path, FA_OPEN_APPEND | FA_WRITE);
     if (res != FR_OK) {
-        uart_print("❌ No se pudo abrir el archivo CSV\r\n");
+        uart_print("No se pudo abrir el archivo CSV\r\n");
         return false;
     }
 
@@ -435,8 +458,85 @@ bool data_logger_write_csv_line(const ParticulateData * data) {
     f_write(&file, "\r\n", 2, &bytes_written);
     f_close(&file);
 
-    uart_print("✅ Línea escrita correctamente en CSV\r\n");
+    uart_print("Línea escrita correctamente en CSV\r\n");
     return true;
+}
+
+bool data_logger_store_raw(const ParticulateData * data) {
+    if (!sd_mounted) {
+        if (!data_logger_init())
+            return false;
+    }
+
+    char filepath[128];
+    char csv_line[CSV_LINE_BUFFER_SIZE];
+    char dirpath[64];
+
+    // Crear carpetas: /YYYY/MM/DD
+    snprintf(dirpath, sizeof(dirpath), "/%04d", data->year);
+    f_mkdir(dirpath);
+
+    snprintf(dirpath, sizeof(dirpath), "/%04d/%02d", data->year, data->month);
+    f_mkdir(dirpath);
+
+    snprintf(dirpath, sizeof(dirpath), "/%04d/%02d/%02d", data->year, data->month, data->day);
+    f_mkdir(dirpath);
+
+    // Crear nombre del archivo
+    snprintf(filepath, sizeof(filepath), "/%04d/%02d/%02d/RAW_%02d_%04d%02d%02d.CSV", data->year,
+             data->month, data->day, data->sensor_id, data->year, data->month, data->day);
+
+    // Abrir archivo
+    FIL file;
+    FRESULT res = f_open(&file, filepath, FA_OPEN_ALWAYS | FA_WRITE);
+    if (res != FR_OK) {
+        uart_print("No se pudo abrir archivo para escribir\r\n");
+        print_fatfs_error(res);
+        return false;
+    }
+
+    // Verificar si el archivo está vacío para agregar encabezado
+    if (f_size(&file) == 0) {
+        char header[320];
+        snprintf(header, sizeof(header),
+                 "# Sensor ID: %d\n"
+                 "# Serial: %s\n"
+                 "# Ubicación: %s\n"
+                 "# Coordenadas: %s\n"
+                 "# Unidades: PM1.0, PM2.5, PM4.0, PM10 en ug/m3; Temp en °C; Humedad en %%RH\n"
+                 "# Formato: timestamp, sensor_id, pm1.0, pm2.5, pm4.0, pm10, temp, hum\n",
+                 data->sensor_id, sensor_metadata[data->sensor_id - 1].serial_number,
+                 sensor_metadata[data->sensor_id - 1].location_name, LOCATION_COORDS);
+
+        UINT bw_header;
+        f_write(&file, header, strlen(header), &bw_header);
+    }
+
+    // Cerrar archivo después de escribir cabecera
+    f_close(&file);
+
+    // Crear línea CSV
+    if (!format_csv_line(data, csv_line, sizeof(csv_line))) {
+        uart_print("Error al generar línea CSV\r\n");
+        return false;
+    }
+
+    // Escribir la línea CSV usando utilidad
+    bool ok = microSD_appendLineAbsolute(filepath, csv_line);
+
+    if (ok) {
+        uart_print("RAW escrito: ");
+        uart_print(csv_line);
+    } else {
+        uart_print("Fallo al escribir en RAW\r\n");
+    }
+
+    return ok;
+}
+
+void build_iso8601_timestamp(char * buffer, size_t len, const ParticulateData * data) {
+    snprintf(buffer, len, "%04u-%02u-%02uT%02u:%02u:%02uZ", data->year, data->month, data->day,
+             data->hour, data->min, data->sec);
 }
 
 /* === End of documentation ==================================================================== */

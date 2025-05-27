@@ -38,6 +38,7 @@
 #include "rtc_ds3231_for_stm32_hal.h"
 #include "fatfs_sd.h"
 #include "microSD.h"
+#include "mp_sensors_info.h"
 
 #include "test_format_csv.h"
 /* USER CODE END Includes */
@@ -64,7 +65,7 @@
 /* USER CODE BEGIN PV */
 
 // Declaración del objeto SPS30
-SPS30 sps30;
+
 // extern UART_HandleTypeDef *uart_debug;
 
 // extern void test_format_csv_line(void);
@@ -154,7 +155,7 @@ int main(void) {
 
     rtc_auto_init(); // Detecta y configura el RTC correcto
 
-    test_format_csv_line();
+    //    test_format_csv_line();
 
     RTC_ReceiveTimeFromTerminal(&huart3);
 
@@ -171,9 +172,6 @@ int main(void) {
    */
 
     /*Inicializar el objeto SPS30 con el manejador de UART*/
-    /*
-      SPS30_init(&sps30, &huart5);
-    */
 
     /* Initialize RTC */
 
@@ -189,24 +187,25 @@ int main(void) {
     //  uart_print("Inicializando RTC DS1307...\n");
     // time_rtc_Init(&hi2c2);
 
-    /*Despierta al sensor SPS30*/
-    sps30.wake_up(&sps30);
-    uart_print("WAKE UP :\n");
-
     /* Initialize data logger */
     //     uart_print("Inicializando sistema de almacenamiento de datos...\n");
 
     if (!data_logger_init()) {
         uart_print("¡Error al inicializar el sistema de almacenamiento!\n");
     } else {
-        ParticulateData test_data = {.timestamp = "2025-05-22T20:30:00Z",
-                                     .sensor_id = 1,
+        ParticulateData test_data = {.sensor_id = 1,
                                      .pm1_0 = 3.2,
                                      .pm2_5 = 5.6,
                                      .pm4_0 = 6.7,
                                      .pm10 = 7.2,
                                      .temp = 23.4,
-                                     .hum = 42.1};
+                                     .hum = 42.1,
+                                     .year = 2025,
+                                     .month = 5,
+                                     .day = 22,
+                                     .hour = 20,
+                                     .min = 30,
+                                     .sec = 0};
 
         data_logger_write_csv_line(&test_data);
     }
@@ -215,6 +214,8 @@ int main(void) {
 
     uart_print("Inicializando sensores SPS30...\n");
     inicializar_sensores_sps30();
+
+    mp_sensors_info_init(); // ← Aquí obtienes y guardas los seriales
 
     /* Buffer de Mensajes */
 
@@ -227,8 +228,10 @@ int main(void) {
     /* USER CODE BEGIN WHILE */
     int contador = 1;
     char buffer[100];
-    RTC_ReceiveTimeFromTerminal(&huart3);
+    //    RTC_ReceiveTimeFromTerminal(&huart3);
     while (1) {
+
+        uart_print("Entrando a ciclo de monitoreo...\n");
 
         /*TEST*/
         snprintf(buffer, sizeof(buffer), "%d", contador); // Convierte el contador a cadena
@@ -240,7 +243,7 @@ int main(void) {
         time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
 
         /* Format header message with timestamp and cycle counter */
-        snprintf(msg_buffer, sizeof(msg_buffer), "\n=== Ciclo de medición #%lu: %s ===\n",
+        snprintf(msg_buffer, sizeof(msg_buffer), "\n=== Ciclo de medicion #%lu: %s ===\n",
                  ++ciclo_contador, datetime_buffer);
         uart_print(msg_buffer);
 

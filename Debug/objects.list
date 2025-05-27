@@ -2,6 +2,8 @@
 "./APIs/Src/data_logger.o"
 "./APIs/Src/fatfs_sd.o"
 "./APIs/Src/microSD.o"
+"./APIs/Src/microSD_utils.o"
+"./APIs/Src/mp_sensors_info.o"
 "./APIs/Src/proceso_observador.o"
 "./APIs/Src/rtc_buildtime.o"
 "./APIs/Src/rtc_ds1307_for_stm32_hal.o"

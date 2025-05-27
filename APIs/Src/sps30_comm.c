@@ -167,21 +167,16 @@ ConcentracionesPM sps30_get_concentrations(SPS30 * self) {
 }
 
 void sps30_serial_number(SPS30 * self) {
-    uint8_t cmd[] = SPS30_FRAME_SERIAL_NUMBER;
-    uint8_t stuffed[BUFFER_SIZE_SERIAL_NUMBER] = {0};
-    uint8_t original[BUFFER_SIZE_SERIAL_NUMBER] = {0};
+    static const uint8_t cmd_serial[] = SPS30_FRAME_SERIAL_NUMBER;
+    uint8_t respuesta[48] = {0}; // El número de serie está en los primeros 32 bytes
 
-    self->send_receive(self, cmd, sizeof(cmd), stuffed, sizeof(stuffed));
-    SHDLC_revertByteStuffing(stuffed, sizeof(stuffed), original);
+    self->send_receive(self, cmd_serial, sizeof(cmd_serial), respuesta, sizeof(respuesta));
 
-    // Extrae los 16 bytes del número de serie a partir del offset 6
-    char serial[17] = {0};            // 16 caracteres + nulo
-    memcpy(serial, &original[6], 16); // Ajustar si cambia el protocolo
+    // El número de serie comienza en el byte 4
+    strncpy(self->serial_buf, (char *)&respuesta[4], SERIAL_BUFFER_LEN - 1);
+    self->serial_buf[SERIAL_BUFFER_LEN - 1] = '\0'; // Seguridad por si no hay \0 en respuesta
 
-    // Imprimir de forma legible
-    char mensaje[64];
-    snprintf(mensaje, sizeof(mensaje), MSN_SERIAL_NUMBER, serial);
-    uart_print("%s", mensaje);
+    uart_print("Sensor UART: %p -> Serial: %s\n", self->huart, self->serial_buf);
 }
 
 void sps30_wake_up(SPS30 * self) {

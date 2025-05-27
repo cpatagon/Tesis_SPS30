@@ -35,6 +35,9 @@
 #include <stdbool.h>
 #include "uart.h"
 #include "ff.h"
+
+#include "ParticulateDataAnalyzer.h"
+#include "rtc_ds3231_for_stm32_hal.h"
 /* === Cabecera C++ ============================================================================ */
 #ifdef __cplusplus
 extern "C" {
@@ -85,17 +88,6 @@ typedef struct {
     uint32_t inicio;    // Índice del elemento más antiguo
     uint32_t cantidad;  // Cantidad actual de elementos
 } BufferCircular;
-
-typedef struct {
-    char timestamp[25]; // "2025-05-21T21:30:00Z"
-    int sensor_id;
-    float pm1_0;
-    float pm2_5;
-    float pm4_0;
-    float pm10;
-    float temp;
-    float hum;
-} ParticulateData;
 
 /* === Public variable declarations ============================================================ */
 
@@ -153,6 +145,17 @@ bool log_data_to_sd(const ParticulateData * data);
 void print_fatfs_error(FRESULT res);
 
 bool data_logger_write_csv_line(const ParticulateData * data);
+
+bool data_logger_store_raw(const ParticulateData * data);
+
+bool crear_directorio_fecha(const ds3231_time_t * dt);
+
+bool escribir_linea_csv(const char * filepath, const char * linea);
+
+bool obtener_ruta_archivo(const ds3231_time_t * dt, const char * nombre_archivo, char * filepath,
+                          size_t len);
+
+bool crear_directorio_fecha(const ds3231_time_t * dt);
 
 /* === End of documentation ==================================================================== */
 

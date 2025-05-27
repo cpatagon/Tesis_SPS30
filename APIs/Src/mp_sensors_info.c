@@ -1,8 +1,8 @@
 /*
- * Nombre del archivo: test_format_csv.c
- * Descripción: [Breve descripción del archivo]
+ * Nombre del archivo: mp_sensors_info.c
+ * Descripción: Implementación de la inicialización y almacenamiento de metadatos de sensores SPS30.
  * Autor: lgomez
- * Creado en: 21-05-2025
+ * Creado en: 24-05-2025
  * Derechos de Autor: (C) 2023 [Tu nombre o el de tu organización]
  * Licencia: GNU General Public License v3.0
  *
@@ -20,40 +20,32 @@
  * junto con este programa. Si no es así, visita <http://www.gnu.org/licenses/>.
  *
  * SPDX-License-Identifier: GPL-3.0-only
- *
  */
+
 /** @file
- ** @brief
+ ** @brief Implementación del módulo de metadatos de sensores SPS30.
  **/
 
 /* === Headers files inclusions =============================================================== */
-#include "data_logger.h"
-#include <stdio.h>
+#include "mp_sensors_info.h"
+#include "sps30_multi.h"
+#include "uart.h"
 #include <string.h>
-#include <stddef.h>
 
 /* === Macros definitions ====================================================================== */
 
 /* === Private data type declarations ========================================================== */
-ParticulateData ejemplo = {.sensor_id = 1,
-                           .pm1_0 = 10.0,
-                           .pm2_5 = 20.5,
-                           .pm4_0 = 25.0,
-                           .pm10 = 30.5,
-                           .temp = 21.0,
-                           .hum = 45.0,
-                           .year = 2025,
-                           .month = 5,
-                           .day = 22,
-                           .hour = 14,
-                           .min = 20,
-                           .sec = 0};
 
 /* === Private variable declarations =========================================================== */
 
 /* === Private function declarations =========================================================== */
 
 /* === Public variable definitions ============================================================= */
+MP_SensorInfo sensor_metadata[NUM_SENSORS_SPS30] = {
+    [0] = {.serial_number = "0001", .location_name = "Cerrillos"},
+    [1] = {.serial_number = "0002", .location_name = "Cerrillos"},
+    [2] = {.serial_number = "0003", .location_name = "Cerrillos"},
+};
 
 /* === Private variable definitions ============================================================ */
 
@@ -61,40 +53,27 @@ ParticulateData ejemplo = {.sensor_id = 1,
 
 /* === Public function implementation ========================================================== */
 
-/**
- * @brief Prueba la función format_csv_line() con datos simulados
- */
-void test_format_csv_line(void) {
-    ParticulateData test_data = {.year = 2025,
-                                 .month = 5,
-                                 .day = 21,
-                                 .hour = 21,
-                                 .min = 30,
-                                 .sec = 0,
-                                 .sensor_id = 1,
-                                 .pm1_0 = 3.2,
-                                 .pm2_5 = 5.6,
-                                 .pm4_0 = 6.7,
-                                 .pm10 = 7.2,
-                                 .temp = 23.4,
-                                 .hum = 42.1};
+void mp_sensors_info_init(void) {
+    for (int i = 0; i < sensores_disponibles; ++i) {
+        SPS30 * sensor = &sensores_sps30[i].sensor;
 
-    char buffer[CSV_LINE_BUFFER_SIZE];
+        // Obtener serial dinámicamente
+        sensor->serial_number(sensor);
 
-    if (format_csv_line(&test_data, buffer, sizeof(buffer))) {
-        // Simula impresión UART
-        uart_print("Línea CSV generada:\n%s\n", buffer);
-    } else {
-        uart_print("Error: Buffer insuficiente para la línea CSV.\n");
+        // Guardar serial en metadatos
+        strncpy(sensor_metadata[i].serial_number, (char *)sensor->serial_buf,
+                SENSOR_SERIAL_MAX_LEN - 1);
+        sensor_metadata[i].serial_number[SENSOR_SERIAL_MAX_LEN - 1] = '\0';
+
+        // Nombre de ubicación fijo (puede adaptarse por sensor si es necesario)
+        strncpy(sensor_metadata[i].location_name, LOCATION_NAME,
+                sizeof(sensor_metadata[i].location_name) - 1);
+        sensor_metadata[i].location_name[sizeof(sensor_metadata[i].location_name) - 1] = '\0';
+
+        // Mensaje UART de registro
+        uart_print("Sensor ID: %d -> Serial: %s\n", sensores_sps30[i].id,
+                   sensor_metadata[i].serial_number);
     }
-    char filepath[64];
-    build_csv_filepath_from_datetime(filepath, sizeof(filepath));
-
-    uart_print("Ruta CSV generada:\r\n");
-    uart_print(filepath);
-    uart_print("\r\n");
-
-    log_data_to_sd(&ejemplo);
 }
 
 /* === End of documentation ==================================================================== */
