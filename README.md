@@ -3,258 +3,352 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![STM32F4](https://img.shields.io/badge/STM32-F429ZI-blue)](https://www.st.com/en/microcontrollers-microprocessors/stm32f429zi.html)
 [![Sensor: SPS30](https://img.shields.io/badge/Sensor-SPS30-green)](https://sensirion.com/products/catalog/SPS30/)
+[![Version](https://img.shields.io/badge/Version-v1.1.2-orange)](https://github.com/username/Tesis_SPS30)
 
 ## 📋 Descripción
 
-Este sistema embebido permite la medición precisa y confiable de material particulado fino (MP2.5) en ambientes urbanos y rurales. Diseñado para formar parte de redes de monitoreo de calidad del aire urbanas, contribuye a la gestión ambiental y la salud pública mediante la recolección, procesamiento y transmisión de datos sobre concentraciones de partículas en el aire.
+Sistema embebido para la medición precisa y confiable de material particulado fino (MP2.5) en ambientes urbanos y rurales. Diseñado para formar parte de redes de monitoreo de calidad del aire, contribuye a la gestión ambiental y la salud pública mediante la recolección, procesamiento, análisis estadístico y transmisión de datos sobre concentraciones de partículas en el aire.
 
-El sistema integra múltiples sensores SPS30 para ofrecer mediciones redundantes, mejorando la precisión y confiabilidad. Incorpora capacidades de análisis estadístico en tiempo real, almacenamiento local y transmisión inalámbrica de datos.
+El sistema implementa medición redundante con tres sensores SPS30, análisis estadístico en tiempo real, almacenamiento local jerarquizado y transmisión inalámbrica de datos con reconexión automática.
 
 ## ⚙️ Características principales
 
-- **Medición redundante**: Tres sensores SPS30 operando en paralelo para mayor precisión y confiabilidad
-- **Registro temporal**: Integración con RTC DS3231 para sincronización temporal precisa (±2ppm)
-- **Almacenamiento local**: Sistema de archivos FAT32 en tarjeta microSD
-- **Transmisión inalámbrica**: Módulo ESP8266 para envío de datos a servidores remotos
-- **Bajo consumo**: Estrategias de optimización energética para operación con batería
-- **Procesamiento estadístico**: Análisis en tiempo real para validación y corrección de mediciones
-- **Monitoreo ambiental**: Sensor DHT22 para variables de temperatura y humedad
-- **Diseño robusto**: Sistema de respaldo de alimentación y recuperación ante fallos
+- **Medición triple redundante**: Tres sensores SPS30 operando simultáneamente por UARTs independientes
+- **Análisis estadístico en tiempo real**: Cálculo de promedios, máximos, mínimos y desviación estándar
+- **Validación de coherencia**: Detección automática de valores atípicos y verificación entre sensores
+- **Registro temporal robusto**: RTC DS3231 con fallback automático al RTC interno del STM32
+- **Almacenamiento jerárquico**: Sistema FAT32 en microSD con estructura temporal organizada
+- **Monitoreo ambiental dual**: Dos sensores DHT22 para temperatura y humedad
+- **Corrección estadística**: Algoritmo de corrección basado en variables ambientales
+- **Arquitectura modular**: Separación clara entre capas HAL, drivers y aplicación
+- **Gestión de energía**: Optimización para operación con batería y modos de bajo consumo
+- **Comunicación inalámbrica**: Transmisión vía ESP8266 con buffer de reintentos
 
 ## 🏗️ Arquitectura del sistema
 
-### Hardware
+### Hardware implementado
 
-| Componente | Modelo | Características | Interfaz |
-|------------|--------|-----------------|----------|
-| Microcontrolador | STM32F429ZI | ARM Cortex-M4, 180 MHz, FPU | - |
-| Sensores MP | 3 × SPS30 | Rango: 0-1000 μg/m³, 4 fracciones de tamaño | UART (115200 baudios) |
-| Sensor ambiental | DHT22 | Temperatura: -40 a 80°C, Humedad: 0-100% | Digital (1-Wire) |
-| Reloj RTC | DS3231 | Precisión: ±2ppm | I²C |
-| Almacenamiento | Módulo microSD | Sistema FAT32 | SPI (42 MHz) |
-| Comunicación | ESP8266 | WiFi 802.11 b/g/n | UART (115200 baudios) |
-| Alimentación | S-25-5 | Entrada: 220V AC, Salida: 5V DC, 5A | - |
+| Componente | Modelo | Características | Pin STM32F429ZI | Estado |
+|------------|--------|-----------------|-----------------|--------|
+| Microcontrolador | STM32F429ZI | ARM Cortex-M4, 180 MHz, FPU | - | ✅ Operativo |
+| Sensor MP #1 | SPS30 | Rango: 0-1000 μg/m³, 4 fracciones | UART1 (PA9/PA10) | ✅ Operativo |
+| Sensor MP #2 | SPS30 | Protocolo SHDLC, 115200 baudios | UART5 (PC12/PD2) | ✅ Operativo |
+| Sensor MP #3 | SPS30 | Tiempo inicio: 8-30s | UART7 (PE8/PE7) | ✅ Operativo |
+| Sensor ambiental A | DHT22 | Temp: -40 a 80°C, Hum: 0-100% | GPIO PB11 | ✅ Operativo |
+| Sensor ambiental B | DHT22 | Precisión: ±0.5°C, ±2% HR | GPIO PB12 | ✅ Operativo |
+| RTC externo | DS3231 | Precisión: ±2ppm, backup batería | I²C2 (PB8/PB9) | ✅ Operativo |
+| RTC interno | STM32 RTC | Fallback automático | Interno | ✅ Operativo |
+| Almacenamiento | microSD | FAT32, estructura jerárquica | SPI1 (PA5/PA6/PA7/PB5) | ✅ Operativo |
+| Comunicación | ESP8266 | WiFi 802.11 b/g/n | UART6 (PC6/PC7) | 🔄 En desarrollo |
+| Debug/Terminal | UART3 | 115200 baudios | USART3 | ✅ Operativo |
 
-### Software
+### Arquitectura de software
 
-La arquitectura de software implementa una estructura de tres capas:
+```
+┌─────────────────┐
+│  Capa Aplicación │  ← Procesos principales de negocio
+├─────────────────┤
+│   Capa Drivers  │  ← Controladores específicos de dispositivos
+├─────────────────┤
+│    Capa HAL     │  ← Interfaces hardware STM32
+└─────────────────┘
+```
 
-1. **Capa de aplicación**
-   - Proceso observador (adquisición de datos)
-   - Proceso de análisis (validación estadística)
-   - Proceso de almacenamiento
-   - Proceso de comunicación
-   - Sistema de alarmas
+#### Procesos implementados
 
-2. **Capa de drivers**
-   - Controladores específicos para cada periférico
-   - Implementación de protocolos (SHDLC, FAT32)
+1. **Proceso Observador** (`proceso_observador.c`)
+   - Adquisición de datos desde múltiples sensores SPS30
+   - Validación de rangos: 0.5-1000 μg/m³
+   - Sistema de reintentos (máximo 3 intentos)
+   - Timestamp ISO8601 automático
 
-3. **Capa HAL**
-   - Interfaces estandarizadas para acceso al hardware STM32
-   - Abstracciones de periféricos (GPIO, UART, I2C, SPI)
+2. **Sistema de Análisis Estadístico** (`ParticulateDataAnalyzer.c`)
+   - Cálculo de promedios ponderados
+   - Detección de valores máximos y mínimos
+   - Cálculo de desviación estándar
+   - Validación de datos con máscaras configurables
+
+3. **Data Logger** (`data_logger.c`)
+   - Buffer circular triple: alta frecuencia (60 muestras), horario (24 muestras), diario (30 muestras)
+   - Almacenamiento automático en microSD
+   - Formato CSV con estructura temporal
+
+4. **Gestión de Tiempo** (`time_rtc.c`)
+   - Detección automática de RTC disponible
+   - Sincronización con DS3231 o RTC interno
+   - Configuración desde terminal UART
 
 ## 🔄 Protocolos implementados
 
-| Protocolo | Aplicación | Características |
-|-----------|------------|-----------------|
-| SHDLC | Sensores SPS30 | Protocolo propietario Sensirion, 115200 baudios |
-| I²C | RTC DS3231 | 100 kHz, dirección 0x68 |
-| SPI | Tarjeta microSD | 42 MHz, FAT32 |
-| UART | Módulo ESP8266 | 115200 baudios, control de flujo hardware |
-| HTTP | Transmisión de datos | Formato JSON, solicitudes POST |
+| Protocolo | Aplicación | Configuración | Estado |
+|-----------|------------|---------------|--------|
+| **SHDLC** | Sensores SPS30 | 115200 baudios, checksum CRC | ✅ Completo |
+| **1-Wire** | Sensores DHT22 | Protocolo temporal crítico | ✅ Completo |
+| **I²C** | RTC DS3231 | 100 kHz, dirección 0x68 | ✅ Completo |
+| **SPI** | Tarjeta microSD | 42 MHz, modo 0, FAT32 | ✅ Completo |
+| **UART** | Debug y comunicación | 115200 baudios múltiples canales | ✅ Completo |
+| **HTTP** | Transmisión ESP8266 | JSON POST con reintentos | 🔄 En desarrollo |
 
-## 📊 Flujo de datos
+## 📊 Flujo de datos implementado
 
-El sistema implementa el siguiente flujo de procesamiento:
-
-1. **Adquisición**: Muestreo programable desde sensores (intervalo mínimo: 1 segundo)
-2. **Validación**: Detección de valores atípicos y errores de medición
-3. **Procesamiento**: Cálculo de promedios móviles y estadísticas
-4. **Corrección**: Ajuste por variables ambientales (temperatura, humedad)
-5. **Almacenamiento**: Registro en microSD con estructura jerárquica temporal
-6. **Transmisión**: Envío a servidor remoto mediante protocolo HTTP
+```
+┌─────────┐    ┌──────────────┐    ┌─────────────┐    ┌──────────────┐
+│ SPS30×3 │───▶│ Validación   │───▶│ Análisis    │───▶│ Almacenamiento│
+│ DHT22×2 │    │ & Timestamp  │    │ Estadístico │    │ microSD      │
+└─────────┘    └──────────────┘    └─────────────┘    └──────────────┘
+                        │                   │                   │
+                        ▼                   ▼                   ▼
+                ┌──────────────┐    ┌─────────────┐    ┌──────────────┐
+                │ Buffer       │    │ Corrección  │    │ Transmisión  │
+                │ Circular     │    │ Ambiental   │    │ WiFi         │
+                └──────────────┘    └─────────────┘    └──────────────┘
+```
 
 ## 📁 Estructura del repositorio
 
 ```
 Tesis_SPS30/
-├── APIs
-│   ├── Config
-│   │   └── rtc_config.h
-│   ├── Inc
-│   │   ├── data_logger.h
-│   │   ├── fatfs_sd.h
-│   │   ├── microSD.h
-│   │   ├── ParticulateDataAnalyzer.h
-│   │   ├── proceso_observador.h
-│   │   ├── rtc_buildtime.h
-│   │   ├── rtc_ds1307_for_stm32_hal.h
-│   │   ├── rtc_ds3231_for_stm32_hal.h
-│   │   ├── shdlc.h
-│   │   ├── sps30_comm.h
-│   │   ├── sps30_multi.h
-│   │   ├── time_rtc.h
-│   │   └── uart.h
-│   └── Src
-│       ├── data_logger.c
-│       ├── fatfs_sd.c
-│       ├── microSD.c
-│       ├── ParticulateDataAnalyzer.c
-│       ├── proceso_oservador.c
-│       ├── rtc_buildtime.c
-│       ├── rtc_ds1307_for_stm32_hal.c
-│       ├── rtc_ds3231_for_stm32_hal.c
-│       ├── shdlc.c
-│       ├── sps30_comm.c
-│       ├── sps30_multi.c
-│       ├── time_rtc.c
-│       └── uart.c
-├── Core
-│   ├── Inc
-│   │   ├── gpio.h
-│   │   ├── i2c.h
-│   │   ├── main.h
-│   │   ├── rtc.h
-│   │   ├── spi.h
-│   │   ├── stm32f4xx_hal_conf.h
-│   │   ├── stm32f4xx_it.h
-│   │   └── usart.h
-│   ├── Src
-│   │   ├── gpio.c
-│   │   ├── i2c.c
-│   │   ├── main.c
-│   │   ├── rtc.c
-│   │   ├── spi.c
-│   │   ├── stm32f4xx_hal_msp.c
-│   │   ├── stm32f4xx_it.c
-│   │   ├── syscalls.c
-│   │   ├── sysmem.c
-│   │   ├── system_stm32f4xx.c
-│   │   └── usart.c
-│   └── Startup
+├── APIs/                           # Módulos de aplicación
+│   ├── Config/
+│   │   └── rtc_config.h           # Configuración RTC
+│   ├── Inc/                       # Headers de módulos
+│   │   ├── data_logger.h          # Sistema de logging
+│   │   ├── DHT22_Hardware.h       # Driver DHT22
+│   │   ├── fatfs_sd.h            # Sistema de archivos
+│   │   ├── microSD.h             # Driver microSD
+│   │   ├── ParticulateDataAnalyzer.h  # Análisis estadístico
+│   │   ├── proceso_observador.h   # Proceso principal
+│   │   ├── rtc_*.h               # Gestión de tiempo
+│   │   ├── shdlc.h               # Protocolo SHDLC
+│   │   ├── sps30_*.h             # Drivers SPS30
+│   │   ├── time_rtc.h            # Unificación RTC
+│   │   └── uart.h                # Utilidades UART
+│   └── Src/                      # Implementaciones
+│       ├── data_logger.c         # ✅ Completo
+│       ├── DHT22_Hardware.c      # ✅ Completo
+│       ├── ParticulateDataAnalyzer.c  # ✅ Completo
+│       ├── proceso_observador.c   # ✅ Completo
+│       ├── sps30_*.c             # ✅ Completo
+│       ├── time_rtc.c            # ✅ Completo
+│       └── [otros módulos]       # ✅ Implementados
+├── Core/                          # HAL y configuración STM32
+│   ├── Inc/                      # Headers HAL
+│   │   ├── main.h, gpio.h, usart.h, i2c.h, spi.h
+│   │   └── stm32f4xx_*.h
+│   ├── Src/                      # Implementación HAL
+│   │   ├── main.c                # ✅ Configuración completa
+│   │   ├── gpio.c, usart.c, i2c.c, spi.c
+│   │   └── stm32f4xx_*.c
+│   └── Startup/
 │       └── startup_stm32f429zitx.s
+└── [Archivos de proyecto STM32CubeIDE]
 ```
 
-## ✅ Estado actual del proyecto
+## ✅ Estado actual del proyecto (v1.1.2)
 
-| Módulo | Estado | Detalles |
-|--------|--------|----------|
-| Inicialización STM32 | ✅ Completo | Configuración de reloj, GPIO, UARTs, I2C, SPI |
-| Drivers SPS30 | ✅ Completo | Comunicación SHDLC, funciones wake_up, read_data, etc. |
-| Comunicación multi-sensor | ✅ Operativo | Tres sensores operando por UART1, UART5 y UART7 |
-| Proceso Observador | ✅ Completo | Adquisición c/1min y cálculo promedio c/10min almacenado en SD |
-| Análisis estadístico | ⚠️ Parcial | Implementadas funciones base para cálculos estadísticos |
-| Almacenamiento microSD | ✅ Operativo | Archivos CSV por timestamp, con sincronización |
-| Comunicación WiFi/ESP8266 | ⏳ Pendiente | Envío por HTTP y manejo de reconexiones |
-| Sistema de alarmas | ⏳ Pendiente | LED y notificaciones de error |
-| Documentación Doxygen | ⚠️ En progreso | Comentarios iniciales agregados en todos los archivos |
+| Módulo | Estado | Características implementadas |
+|--------|--------|-------------------------------|
+| **Inicialización STM32** | ✅ Completo | Clock 180MHz, todos los periféricos configurados |
+| **Driver SPS30 múltiple** | ✅ Completo | 3 sensores por UARTs independientes, protocolo SHDLC |
+| **Gestión RTC dual** | ✅ Completo | DS3231 + fallback STM32 interno, detección automática |
+| **Sensores DHT22 dual** | ✅ Completo | Dos sensores para redundancia ambiental |
+| **Sistema microSD** | ✅ Completo | FAT32, archivos CSV jerárquicos, sincronización |
+| **Proceso Observador** | ✅ Completo | Adquisición c/1min, promedio c/10min, validación |
+| **Análisis Estadístico** | ✅ Completo | Media, máx/mín, desviación estándar, validación |
+| **Data Logger** | ✅ Completo | Buffers circulares, almacenamiento automático |
+| **Sistema de Tiempo** | ✅ Completo | Unificación RTC, timestamps ISO8601 |
+| **Comunicación WiFi** | 🔄 En desarrollo | Buffer de reintentos, protocolo HTTP |
+| **Corrección Ambiental** | ⚠️ Parcial | Coeficientes base implementados |
+| **Sistema de Alarmas** | ⏳ Pendiente | LEDs de estado, códigos de error |
+| **Optimización Energía** | ⏳ Pendiente | Modos sleep, duty cycle |
 
-## 🎯 Objetivos próximos
+### Funcionalidades validadas
 
-- Finalizar el Proceso de Análisis
-  - Validar coherencia entre sensores con límite máximo de 15% de desviación
-  - Aplicar corrección estadística con coeficientes configurables
+- ✅ **Adquisición multi-sensor**: Tres SPS30 operando simultáneamente
+- ✅ **Validación de datos**: Rangos, timeouts, reintentos
+- ✅ **Almacenamiento robusto**: Archivos CSV con estructura temporal
+- ✅ **Análisis estadístico**: Cálculos en tiempo real
+- ✅ **Gestión temporal**: RTC dual con fallback automático
+- ✅ **Monitoreo ambiental**: DHT22 dual integrado
+- ✅ **Debug completo**: Sistema UART para monitoreo
 
-- Desarrollar Comunicación vía WiFi
-  - Sistema de envío por HTTP con formato JSON
-  - Implementar buffer para datos no enviados con reintento exponencial
+## 🎯 Objetivos próximos (v1.2)
 
-- Sistema de Alarmas
-  - Indicadores LED con diferentes frecuencias según estado
-  - Almacenamiento de códigos de error en memoria no volátil
+### Alta prioridad
+- [ ] **Finalizar comunicación WiFi**: HTTP POST con JSON, buffer de 100KB
+- [ ] **Corrección estadística completa**: `C_corr = a·C + b·H + c·T + d`
+- [ ] **Validación entre sensores**: Desviación máxima 15% entre SPS30
 
-- Optimización
-  - Reducción de consumo energético para operación con batería
-  - Optimización de memoria RAM (<128KB) y flash (<512KB)
+### Media prioridad
+- [ ] **Sistema de alarmas**: LEDs con frecuencias 1Hz/2Hz/4Hz según estado
+- [ ] **Optimización energética**: Consumo <128KB RAM, <512KB Flash
+- [ ] **Detección de outliers**: Método IQR con factor 1.5
 
-- Documentación y Pruebas
-  - Completar documentación Doxygen para todas las funciones
-  - Desarrollar pruebas unitarias para cada módulo
+### Baja prioridad
+- [ ] **Documentación Doxygen**: Completar todos los módulos
+- [ ] **Pruebas unitarias**: Suite de tests para módulos críticos
+- [ ] **API RESTful**: Interfaz web para configuración remota
 
 ## 🛠️ Compilación e instalación
 
 ### Prerrequisitos
 
-- STM32CubeIDE 1.13.0 o superior
-- STM32CubeMX 6.9.0 o superior
-- Compilador ARM GCC
-- Herramientas de programación STM32 (ST-Link)
+- **STM32CubeIDE** ≥ 1.13.0
+- **STM32CubeMX** ≥ 6.9.0
+- **ARM GCC Compiler** (incluido en CubeIDE)
+- **ST-Link** o compatible para programación
 
-### Pasos para compilar
+### Pasos de instalación
 
-1. Clonar el repositorio:
+1. **Clonar el repositorio**:
    ```bash
-   git clone https://github.com/username/Tesis_SPS30.git
+   git clone https://github.com/lgomez/Tesis_SPS30.git
    cd Tesis_SPS30
    ```
 
-2. Abrir el proyecto en STM32CubeIDE:
-   - Abrir STM32CubeIDE
-   - Seleccionar File > Open Projects from File System
-   - Seleccionar el directorio del proyecto
+2. **Abrir en STM32CubeIDE**:
+   - File → Open Projects from File System
+   - Seleccionar directorio del proyecto
+   - Import automático de configuración
 
-3. Compilar el proyecto:
-   - Hacer clic derecho en el proyecto > Build Project
+3. **Compilar**:
+   ```bash
+   # Desde CubeIDE: clic derecho → Build Project
+   # O desde línea de comandos:
+   make clean && make all
+   ```
 
-4. Programar el microcontrolador:
-   - Conectar el programador ST-Link al puerto SWD
-   - Hacer clic derecho en el proyecto > Run As > STM32 C/C++ Application
+4. **Programar microcontrolador**:
+   - Conectar ST-Link al puerto SWD
+   - Run As → STM32 C/C++ Application
 
-## 🔌 Conexiones
+### Configuración inicial
 
-### Pines del microcontrolador STM32F429ZI
+1. **Insertar microSD** formateada en FAT32
+2. **Conectar sensores** según tabla de pines
+3. **Configurar RTC** desde terminal serie (115200 baudios)
+4. **Verificar logs** en UART3 para confirmación de operación
 
-| Periférico | Pin | Función | Notas |
-|------------|-----|---------|-------|
-| Sensor SPS30 #1 | PA9/PA10 | UART1 TX/RX | 115200 baudios |
-| Sensor SPS30 #2 | PC12/PD2 | UART5 TX/RX | 115200 baudios |
-| Sensor SPS30 #3 | PE8/PE7 | UART7 TX/RX | 115200 baudios |
-| RTC DS3231 | PB8/PB9 | I2C1 SCL/SDA | 100 kHz |
-| MicroSD | PA5/PA6/PA7/PB5 | SPI1 SCK/MISO/MOSI/CS | 42 MHz |
-| ESP8266 | PC6/PC7 | UART6 TX/RX | 115200 baudios |
-| DHT22 | PD0 | GPIO | Digital 1-Wire |
-| LED Estado | PB0 | GPIO | PWM |
-| Sensor Batería | PA0 | ADC | Divisor de tensión |
+## 🔌 Conexiones detalladas
 
-## 📊 Resultados preliminares
+| Periférico | Pines STM32F429ZI | Protocolo | Notas específicas |
+|------------|-------------------|-----------|-------------------|
+| **SPS30 Sensor #1** | PA9(TX)/PA10(RX) | UART1, 115200 | Sensor principal |
+| **SPS30 Sensor #2** | PC12(TX)/PD2(RX) | UART5, 115200 | Redundancia A |
+| **SPS30 Sensor #3** | PE8(TX)/PE7(RX) | UART7, 115200 | Redundancia B |
+| **DHT22 Sensor A** | PB11 | 1-Wire | Sensor primario T/H |
+| **DHT22 Sensor B** | PB12 | 1-Wire | Sensor secundario T/H |
+| **RTC DS3231** | PB8(SCL)/PB9(SDA) | I²C2, 100kHz | Backup con batería |
+| **MicroSD** | PA5/PA6/PA7/PB5 | SPI1, 42MHz | CS en PB5 |
+| **ESP8266** | PC6(TX)/PC7(RX) | UART6, 115200 | WiFi en desarrollo |
+| **Debug UART** | USART3 | UART, 115200 | Terminal serie |
+| **LED Estado** | PB0 | GPIO/PWM | Indicador visual |
+| **Sensor Batería** | PA0 | ADC | Monitoreo alimentación |
 
-El sistema ha sido evaluado en condiciones de laboratorio y campo, con los siguientes resultados:
+## 📊 Resultados y validación
 
-- **Tiempo de inicio del sensor**: 8-30 segundos dependiendo de la concentración
-- **Precisión de medición**: ±10% comparado con sensores de referencia
-- **Consumo de energía**: 55mA en modo medición continua, 3.5mA con ciclo de trabajo optimizado
-- **Completitud de datos**: 90.54% en entorno operativo real
-- **Correlación entre sensores**: r > 0.90 para todas las parejas de sensores
+### Rendimiento del sistema
+- **Tiempo de inicio**: SPS30: 8-30s, sistema completo: <45s
+- **Precisión de medición**: ±10% respecto a sensores de referencia
+- **Consumo energético**: 55mA continuo, 3.5mA con optimización
+- **Integridad de datos**: >90% en condiciones operativas reales
+- **Correlación entre sensores**: r > 0.90 para mediciones simultáneas
 
-### Estrategia de bajo consumo
+### Algoritmos implementados
+- **Validación de datos**: Rango 0.5-1000 μg/m³, timeout 5s
+- **Análisis estadístico**: Media aritmética, desviación estándar muestral
+- **Detección de errores**: Método de máscaras de validación
+- **Almacenamiento**: Sincronización cada 10 registros o 5 minutos
 
-Se ha implementado un esquema de bajo consumo que:
-- Activa el sensor solo durante los períodos de medición
-- Pone el sensor en modo sleep entre mediciones
-- Optimiza el ciclo de trabajo del ventilador
+### Estructura de datos CSV
+```csv
+timestamp,sensor_id,pm1_0,pm2_5,pm4_0,pm10,temperature,humidity
+2025-06-14T10:30:00Z,1,12.5,18.2,21.4,25.8,22.3,45.7
+```
 
-Con esta estrategia, se logra una reducción del consumo de hasta 15 veces comparado con el modo continuo.
+## 🔧 Configuración avanzada
 
-## 📚 Referencias
+### Parámetros de observación (`proceso_observador.h`)
+```c
+#define NUM_REINT                    3     // Reintentos por sensor
+#define CONC_MIN_PM                  0.5f  // Concentración mínima válida
+#define CONC_MAX_PM                  1000.0f // Concentración máxima válida
+#define HAL_DELAY_SIGUIENTE_MEDICION 5000  // Delay entre mediciones (ms)
+```
 
-- [Datasheet SPS30](https://sensirion.com/products/catalog/SPS30/)
-- [Manual de referencia STM32F429ZI](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf)
-- [FAT File System Module for STM32](http://elm-chan.org/fsw/ff/00index_e.html)
-- Kuula, J., Kuuluvainen, H., Rönkkö, T. et al. (2020). Applicability of optical and diffusion charging-based particulate matter sensors to urban air quality measurements. Aerosol Air Qual. Res., 20, 1-16.
-- Nasar, Z., Selleck, P., Abed, E. A., & Shukla, N. (2024). Low-cost sensors for air quality monitoring: A comprehensive review. Sensors and Actuators B: Chemical, 394, 134481.
+### Configuración de buffers (`data_logger.h`)
+```c
+#define BUFFER_HIGH_FREQ_SIZE 60  // 60 muestras @ 10min = 10h
+#define BUFFER_HOURLY_SIZE    24  // 24 muestras = 1 día
+#define BUFFER_DAILY_SIZE     30  // 30 muestras = 1 mes
+```
+
+## 📚 Referencias técnicas
+
+- [Datasheet SPS30](https://sensirion.com/products/catalog/SPS30/) - Especificaciones del sensor
+- [Manual STM32F429ZI](https://www.st.com/resource/en/reference_manual/dm00031020.pdf) - Referencia del microcontrolador
+- [FatFS Documentation](http://elm-chan.org/fsw/ff/00index_e.html) - Sistema de archivos
+- [DS3231 Datasheet](https://datasheets.maximintegrated.com/en/ds/DS3231.pdf) - RTC de precisión
+- Kuula, J. et al. (2020). *Applicability of optical sensors for urban PM measurement*
+- Nasar, Z. et al. (2024). *Low-cost sensors for air quality monitoring: A comprehensive review*
+
+## 🐛 Depuración y logs
+
+### Mensajes de debug principales
+```c
+// Proceso observador
+"[timestamp] SPS30 ID:X | PM1.0: XX.XX | PM2.5: XX.XX | ug/m3"
+"**ERROR[SPS30_FAIL] Sensor ID:X sin respuesta tras 3 intentos"
+
+// Sistema RTC
+"RTC DS3231 detectado y configurado"
+"Fallback: usando RTC interno STM32"
+
+// Almacenamiento
+"Data logger inicializado correctamente"
+"Archivo CSV guardado: /YYYY/MM/DD/DATA_HHMMSS.CSV"
+```
+
+### Códigos de error comunes
+- `SPS30_RETRY`: Fallo temporal en comunicación con sensor
+- `RTC_FALLBACK`: RTC externo no disponible, usando interno
+- `SD_WRITE_ERROR`: Error de escritura en microSD
+- `DATA_VALIDATION_FAIL`: Datos fuera de rango válido
+
+## 👤 Información del proyecto
+
+**Autor**: Luis Gómez
+**Institución**: Universidad de Buenos Aires - Facultad de Ingeniería
+**Programa**: Carrera de Especialización en Sistemas Embebidos
+**Tipo**: Trabajo Final Integrador
+**Director**: [Nombre del Director]
+**Año**: 2024-2025
+
+### Contacto y soporte
+- **Email**: lgomez@estudiante.uba.ar
+- **Repositorio**: https://github.com/lgomez/Tesis_SPS30
+- **Documentación**: [Wiki del proyecto]
+- **Issues**: [GitHub Issues]
 
 ## 📄 Licencia
 
 Este proyecto se distribuye bajo la [Licencia GNU GPL v3](https://www.gnu.org/licenses/gpl-3.0.html).
 
-## 👤 Autor
-
-**Luis Gómez** - *Tesis de Magíster en Sistemas Embebidos* - Universidad de Buenos Aires
+```
+Copyright (C) 2024 Luis Gómez
+Este programa es software libre: puedes redistribuirlo y/o modificarlo
+bajo los términos de la Licencia Pública General GNU publicada por
+la Free Software Foundation, versión 3.
+```
 
 ## 🙏 Agradecimientos
 
-- Universidad de Buenos Aires, Facultad de Ingeniería
-- Carrera de Especialización en Sistemas Embebidos
-- Laboratorio de Sistemas Embebidos
-- Dr. [Nombre del Director] - Director de tesis
+- **Universidad de Buenos Aires** - Facultad de Ingeniería
+- **Carrera de Especialización en Sistemas Embebidos** - Programa académico
+- **Laboratorio de Sistemas Embebidos** - Infraestructura y equipamiento
+- **Comunidad STM32** - Documentación y soporte técnico
+- **Sensirion AG** - Especificaciones técnicas del SPS30
+
+---
+
+*Última actualización: Junio 2025 | Versión del documento: v1.1.2*
