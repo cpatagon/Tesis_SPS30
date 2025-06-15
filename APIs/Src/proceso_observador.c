@@ -16,6 +16,8 @@
 #include "time_rtc.h"
 #include <stdio.h>
 #include <string.h>
+#include "DHT22.h"
+#include "sensors.h"
 
 #include "ParticulateDataAnalyzer.h"
 
@@ -45,8 +47,18 @@ bool proceso_observador_with_time(SPS30 * sensor, uint8_t sensor_id, const char 
 
             // ⏱ Obtener hora actual
             ds3231_time_t dt;
+
+            // 🌡️ Leer temperatura y humedad del sensor asociado
+            float temperatura = -99.9f;
+            float humedad = -99.9f;
+
+            if (sensor_id == 1) {
+                DHT22_ReadSimple(&dhtA, &temperatura, &humedad); // Usa tu identificador real
+            } else if (sensor_id == 2) {
+                DHT22_ReadSimple(&dhtB, &temperatura, &humedad);
+            }
             if (!ds3231_get_datetime(&dt)) {
-                uart_print("⚠️ Error leyendo hora del RTC\r\n");
+                uart_print("Error leyendo hora del RTC\r\n");
                 return false;
             }
 
@@ -62,8 +74,8 @@ bool proceso_observador_with_time(SPS30 * sensor, uint8_t sensor_id, const char 
                                     .pm2_5 = pm.pm2_5,
                                     .pm4_0 = pm.pm4_0,
                                     .pm10 = pm.pm10,
-                                    .temp = 0.0f,
-                                    .hum = 0.0f,
+                                    .temp = temperatura,
+                                    .hum = humedad,
                                     .year = dt.year,
                                     .month = dt.month,
                                     .day = dt.day,

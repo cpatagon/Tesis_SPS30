@@ -31,6 +31,7 @@
 /* === Headers files inclusions ================================================================ */
 #include "stm32f4xx_hal.h"
 #include "DHT22_Hardware.h"
+#include <stdbool.h>
 // #include "gpio.h"
 
 /* === Cabecera C++ ============================================================================ */
@@ -84,6 +85,21 @@ void DHT22_Init(DHT22_HandleTypeDef * dht, GPIO_TypeDef * GPIOx, uint16_t GPIO_P
  * @return int Estado de la operación: DHT22_OK si es exitoso, código de error si falla.
  */
 int DHT22_Read(DHT22_HandleTypeDef * dht, DHT22_Data * data);
+
+/**
+ * @brief Lee temperatura y humedad con validación de rangos.
+ *
+ * Realiza una lectura del sensor DHT22 y retorna `true` solo si los datos son válidos.
+ * En caso de error o datos fuera de rango, devuelve `false` y asigna valores inválidos (-99.9).
+ *
+ * @param[in] dht   Puntero a estructura del sensor.
+ * @param[out] temp Puntero a la temperatura medida (°C).
+ * @param[out] hum  Puntero a la humedad medida (%RH).
+ *
+ * @retval true si la lectura fue exitosa y válida.
+ * @retval false si hubo error de lectura o valores fuera de rango.
+ */
+bool DHT22_ReadSimple(DHT22_HandleTypeDef * dht, float * temp, float * hum);
 
 /* === End of documentation ==================================================================== */
 

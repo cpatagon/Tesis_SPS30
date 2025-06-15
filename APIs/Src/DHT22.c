@@ -137,4 +137,39 @@ int DHT22_Read(DHT22_HandleTypeDef * dht, DHT22_Data * data) {
     return DHT22_OK;                             // Operación exitosa
 }
 
+/**
+ * @brief Realiza una lectura validada del sensor DHT22.
+ *
+ * Lee temperatura y humedad desde el DHT22, y valida que los datos estén en rangos físicos
+ * esperados.
+ *
+ * @param[in] dht  Puntero a la estructura DHT22 inicializada.
+ * @param[out] temp Puntero a variable de salida con la temperatura en grados Celsius.
+ * @param[out] hum  Puntero a variable de salida con la humedad relativa en %.
+ *
+ * @retval true si la lectura fue exitosa y los datos son válidos.
+ * @retval false si hubo error de lectura o si los datos están fuera de rango.
+ */
+bool DHT22_ReadSimple(DHT22_HandleTypeDef * dht, float * temp, float * hum) {
+    DHT22_Data data;
+
+    if (DHT22_Read(dht, &data) != DHT22_OK) {
+        *temp = -99.9f;
+        *hum = -99.9f;
+        return false;
+    }
+
+    // Validar rangos físicos esperados
+    if (data.temperatura < -40.0f || data.temperatura > 80.0f || data.humedad < 0.0f ||
+        data.humedad > 100.0f) {
+        *temp = -99.9f;
+        *hum = -99.9f;
+        return false;
+    }
+
+    *temp = data.temperatura;
+    *hum = data.humedad;
+    return true;
+}
+
 /* === End of documentation ==================================================================== */

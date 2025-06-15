@@ -249,6 +249,11 @@ FRESULT guardar_promedio_csv(float pm1_0, float pm2_5, float pm4_0, float pm10, 
         uart_print("Error escribiendo promedio a SD\r\n");
     }
 
+    if (f_size(&archivo) == 0) {
+        const char * encabezado = "timestamp,PM1.0,PM2.5,PM4.0,PM10,temp,humidity\n";
+        f_write(&archivo, encabezado, strlen(encabezado), &escritos);
+    }
+
     return res;
 }
 

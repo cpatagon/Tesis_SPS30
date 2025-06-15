@@ -40,6 +40,7 @@
 #include "microSD.h"
 #include "mp_sensors_info.h"
 #include "DHT22.h"
+#include "sensors.h"
 
 #include "test_format_csv.h"
 /* USER CODE END Includes */
@@ -100,13 +101,9 @@ int main(void) {
 
     /* USER CODE BEGIN Init */
 
-    // SPS30_Init(&huart5);
-    // Estructura para manejar el DHT22
-    DHT22_HandleTypeDef dht22_A;
-    DHT22_Init(&dht22_A, GPIOB, GPIO_PIN_11);
+    sensors_init_all();
 
-    DHT22_HandleTypeDef dht22_B;
-    DHT22_Init(&dht22_B, GPIOB, GPIO_PIN_12);
+    // SPS30_Init(&huart5);
 
     /* USER CODE END Init */
 
@@ -242,14 +239,14 @@ int main(void) {
     //    RTC_ReceiveTimeFromTerminal(&huart3);
     while (1) {
 
-        if (DHT22_Read(&dht22_A, &sensorData) == DHT22_OK) {
+        if (DHT22_Read(&dhtA, &sensorData) == DHT22_OK) {
             snprintf(messageA, sizeof(messageA), "Sensor A: Temp: %.1f C, Hum: %.1f%%\n",
                      sensorData.temperatura, sensorData.humedad);
         } else {
             snprintf(messageA, sizeof(messageA), "Error leyendo DHT22_A\n");
         }
 
-        if (DHT22_Read(&dht22_B, &sensorData) == DHT22_OK) {
+        if (DHT22_Read(&dhtB, &sensorData) == DHT22_OK) {
             snprintf(messageB, sizeof(messageB), "Sensor B: Temp: %.1f C, Hum: %.1f%%\n",
                      sensorData.temperatura, sensorData.humedad);
         } else {
