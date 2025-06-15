@@ -48,6 +48,8 @@ extern "C" {
 
 /* === Sensores de Material Particulado (SPS30) ============================================= */
 
+extern DHT22_HandleTypeDef dht_ambiente;
+
 extern SensorSPS30 sensores_sps30[NUM_SENSORES_SPS30];
 extern int sensores_disponibles;
 

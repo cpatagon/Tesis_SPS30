@@ -163,8 +163,6 @@ int main(void) {
 
     RTC_ReceiveTimeFromTerminal(&huart3);
 
-    DHT22_Data sensorData;
-
     // rtc_set_test_time(); // <- llamada de prueba
 
     /*TEST*/
@@ -196,26 +194,6 @@ int main(void) {
     /* Initialize data logger */
     //     uart_print("Inicializando sistema de almacenamiento de datos...\n");
 
-    if (!data_logger_init()) {
-        uart_print("¡Error al inicializar el sistema de almacenamiento!\n");
-    } else {
-        ParticulateData test_data = {.sensor_id = 1,
-                                     .pm1_0 = 3.2,
-                                     .pm2_5 = 5.6,
-                                     .pm4_0 = 6.7,
-                                     .pm10 = 7.2,
-                                     .temp = 23.4,
-                                     .hum = 42.1,
-                                     .year = 2025,
-                                     .month = 5,
-                                     .day = 22,
-                                     .hour = 20,
-                                     .min = 30,
-                                     .sec = 0};
-
-        data_logger_write_csv_line(&test_data);
-    }
-
     /* Initialize SPS30 sensors array */
 
     uart_print("Inicializando sensores SPS30...\n");
@@ -225,75 +203,60 @@ int main(void) {
 
     /* Buffer de Mensajes */
 
-    char datetime_buffer[32];
-    char msg_buffer[128];
     uint32_t ciclo_contador = 0;
     /* USER CODE END 2 */
 
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
-    int contador = 1;
-    char buffer[100];
-    char messageA[100];
-    char messageB[100];
-    //    RTC_ReceiveTimeFromTerminal(&huart3);
+
     while (1) {
 
+        /* === Medición de sensores DHT22 (ambiente y cámara) ========================== */
+
+        DHT22_Data sensorData;
+        float temp_amb = -99.9f;
+        float hum_amb = -99.9f;
+        float temp_cam = -99.9f;
+        float hum_cam = -99.9f;
+
         if (DHT22_Read(&dhtA, &sensorData) == DHT22_OK) {
-            snprintf(messageA, sizeof(messageA), "Sensor A: Temp: %.1f C, Hum: %.1f%%\n",
-                     sensorData.temperatura, sensorData.humedad);
+            temp_amb = sensorData.temperatura;
+            hum_amb = sensorData.humedad;
+            uart_print("Ambiente: Temp: %.1f C, Hum: %.1f%%\n", temp_amb, hum_amb);
         } else {
-            snprintf(messageA, sizeof(messageA), "Error leyendo DHT22_A\n");
+            uart_print("Error leyendo DHT22 ambiente\n");
         }
 
         if (DHT22_Read(&dhtB, &sensorData) == DHT22_OK) {
-            snprintf(messageB, sizeof(messageB), "Sensor B: Temp: %.1f C, Hum: %.1f%%\n",
-                     sensorData.temperatura, sensorData.humedad);
+            temp_cam = sensorData.temperatura;
+            hum_cam = sensorData.humedad;
+            uart_print("Cámara: Temp: %.1f C, Hum: %.1f%%\n", temp_cam, hum_cam);
         } else {
-            snprintf(messageB, sizeof(messageB), "Error leyendo DHT22_B\n");
+            uart_print("Error leyendo DHT22 cámara\n");
         }
-        uart_print(messageA);
-        uart_print(messageB);
 
-        // Enviar el mensaje por UART
-        // HAL_UART_Transmit(&huart3, (uint8_t *)message, strlen(message), HAL_MAX_DELAY);
-
-        HAL_Delay(2000);
-
-        uart_print("Entrando a ciclo de monitoreo...\n");
-
-        /*TEST*/
-        snprintf(buffer, sizeof(buffer), "%d", contador); // Convierte el contador a cadena
-        microSD_appendLine(sd, buffer);                   // Escribe la cadena en el archivo
-        contador++;                                       // Incrementa el contador
-        HAL_Delay(5000);
-
-        /* Get current date and time */
+        /* === Timestamp y encabezado de ciclo ========================================= */
+        char datetime_buffer[32];
+        char msg_buffer[128];
         time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
 
-        /* Format header message with timestamp and cycle counter */
-        snprintf(msg_buffer, sizeof(msg_buffer), "\n=== Ciclo de medicion #%lu: %s ===\n",
+        snprintf(msg_buffer, sizeof(msg_buffer), "\n=== Ciclo de medición #%lu: %s ===\n",
                  ++ciclo_contador, datetime_buffer);
         uart_print(msg_buffer);
 
-        /* Read all available sensors */
+        /* === Ciclo de medición SPS30 ================================================= */
         for (int i = 0; i < sensores_disponibles; i++) {
-            if (proceso_observador(&sensores_sps30[i].sensor, sensores_sps30[i].id)) {
-                /* Get the last measurement data and store it */
-                ConcentracionesPM valores =
-                    sensores_sps30[i].sensor.get_concentrations(&sensores_sps30[i].sensor);
-                data_logger_store_measurement(sensores_sps30[i].id, valores, -999.0f, -999.0f);
-            }
+            proceso_observador_3PM_2TH(&sensores_sps30[i].sensor, sensores_sps30[i].id,
+                                       datetime_buffer, temp_amb, hum_amb, temp_cam, hum_cam);
         }
 
-        /* Print data summary every 10 cycles */
-        if (ciclo_contador % 10 == 0) {
+        /* === Reporte de resumen cada 10 ciclos ======================================= */
+        if (ciclo_contador % 10U == 0U) {
             data_logger_print_summary();
 
-            /* Print average PM2.5 of all sensors */
-            float pm25_avg = data_logger_get_average_pm25(0, 10);
+            float pm25_avg = data_logger_get_average_pm25(0U, 10U);
             snprintf(msg_buffer, sizeof(msg_buffer),
-                     "Promedio PM2.5 (ultimas 10 mediciones): %.2f ug/m3\n", pm25_avg);
+                     "Promedio PM2.5 (últimas 10 mediciones): %.2f ug/m3\n", pm25_avg);
             uart_print(msg_buffer);
         }
 

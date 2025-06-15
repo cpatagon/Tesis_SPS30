@@ -1,2 +1,3 @@
 proceso_observador.c:25:6:proceso_observador	1
-proceso_observador.c:33:6:proceso_observador_with_time	13
+proceso_observador.c:32:6:proceso_observador_with_time	13
+proceso_observador.c:102:6:proceso_observador_3PM_2TH	11

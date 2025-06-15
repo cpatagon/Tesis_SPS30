@@ -40,8 +40,10 @@ ParticulateData ejemplo = {.sensor_id = 1,
                            .pm2_5 = 20.5,
                            .pm4_0 = 25.0,
                            .pm10 = 30.5,
-                           .temp = 21.0,
-                           .hum = 45.0,
+                           .temp_amb = 21.0, // Temperatura ambiente medida al inicio del ciclo
+                           .hum_amb = 45.0,  // Humedad ambiente medida al inicio del ciclo
+                           .temp_cam = 25.2, // Temperatura interna de la cámara, si se mide
+                           .hum_cam = 48.1,  // Humedad dentro de la cámara, si se mide
                            .year = 2025,
                            .month = 5,
                            .day = 22,
@@ -76,25 +78,26 @@ void test_format_csv_line(void) {
                                  .pm2_5 = 5.6,
                                  .pm4_0 = 6.7,
                                  .pm10 = 7.2,
-                                 .temp = 23.4,
-                                 .hum = 42.1};
+                                 .temp_amb = 23.4,
+                                 .hum_amb = 42.1,
+                                 .temp_cam = 24.8,
+                                 .hum_cam = 46.7};
 
     char buffer[CSV_LINE_BUFFER_SIZE];
 
     if (format_csv_line(&test_data, buffer, sizeof(buffer))) {
-        // Simula impresión UART
         uart_print("Línea CSV generada:\n%s\n", buffer);
     } else {
         uart_print("Error: Buffer insuficiente para la línea CSV.\n");
     }
+
     char filepath[64];
     build_csv_filepath_from_datetime(filepath, sizeof(filepath));
-
     uart_print("Ruta CSV generada:\r\n");
     uart_print(filepath);
     uart_print("\r\n");
 
-    log_data_to_sd(&ejemplo);
+    log_data_to_sd(&test_data); // Ahora usa los datos correctos
 }
 
 /* === End of documentation ==================================================================== */

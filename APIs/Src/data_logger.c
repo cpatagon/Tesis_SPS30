@@ -269,9 +269,10 @@ bool format_csv_line(const ParticulateData * data, char * csv_line, size_t max_l
     char timestamp[32];
     build_iso8601_timestamp(timestamp, sizeof(timestamp), data);
 
-    int written = snprintf(csv_line, max_len, "%s,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f\n", timestamp,
-                           data->sensor_id, data->pm1_0, data->pm2_5, data->pm4_0, data->pm10,
-                           data->temp, data->hum);
+    int written =
+        snprintf(csv_line, max_len, "%s,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f\n", timestamp,
+                 data->sensor_id, data->pm1_0, data->pm2_5, data->pm4_0, data->pm10, data->temp_amb,
+                 data->hum_amb, data->temp_cam, data->hum_cam);
 
     return (written > 0 && (size_t)written < max_len);
 }
@@ -503,14 +504,19 @@ bool data_logger_store_raw(const ParticulateData * data) {
 
     // Verificar si el archivo está vacío para agregar encabezado
     if (f_size(&file) == 0) {
-        char header[320];
+        char header[512];
         snprintf(header, sizeof(header),
                  "# Sensor ID: %d\n"
                  "# Serial: %s\n"
                  "# Ubicación: %s\n"
                  "# Coordenadas: %s\n"
-                 "# Unidades: PM1.0, PM2.5, PM4.0, PM10 en ug/m3; Temp en °C; Humedad en %%RH\n"
-                 "# Formato: timestamp, sensor_id, pm1.0, pm2.5, pm4.0, pm10, temp, hum\n",
+                 "# Unidades:\n"
+                 "#  - PM1.0, PM2.5, PM4.0, PM10 en ug/m3\n"
+                 "#  - Temp_amb y Temp_cam en °C\n"
+                 "#  - Hum_amb y Hum_cam en %%RH\n"
+                 "# Formato:\n"
+                 "#  timestamp, sensor_id, pm1.0, pm2.5, pm4.0, pm10, temp_amb, hum_amb, temp_cam, "
+                 "hum_cam\n",
                  data->sensor_id, sensor_metadata[data->sensor_id - 1].serial_number,
                  sensor_metadata[data->sensor_id - 1].location_name, LOCATION_COORDS);
 

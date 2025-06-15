@@ -89,8 +89,11 @@ typedef struct {
     float pm2_5;
     float pm4_0;
     float pm10;
-    float temp;
-    float hum;
+
+    float temp_amb; // Temperatura ambiente
+    float hum_amb;  // Humedad ambiente
+    float temp_cam; // Temperatura cámara (cerca del SPS30)
+    float hum_cam;  // Humedad cámara
 
     // Nuevos campos necesarios para guardar en RAW
     uint16_t year;
