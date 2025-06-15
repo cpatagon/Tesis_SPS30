@@ -147,6 +147,7 @@ bool data_logger_store_measurement(uint8_t sensor_id, ConcentracionesPM valores,
 
     return true;
 }
+// función encargada de calcular los promedio de material particulado
 
 float data_logger_get_average_pm25(uint8_t sensor_id, uint32_t num_mediciones) {
     float suma = 0.0f;

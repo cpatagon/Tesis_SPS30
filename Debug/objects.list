@@ -1,3 +1,6 @@
+"./APIs/Inc/DHT22_Hardware.o"
+"./APIs/Src/DHT22.o"
+"./APIs/Src/DWT_Delay.o"
 "./APIs/Src/ParticulateDataAnalyzer.o"
 "./APIs/Src/data_logger.o"
 "./APIs/Src/fatfs_sd.o"

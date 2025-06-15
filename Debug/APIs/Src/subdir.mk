@@ -5,6 +5,8 @@
 
 # Add inputs and outputs from these tool invocations to the build variables
 C_SRCS += \
+../APIs/Src/DHT22.c \
+../APIs/Src/DWT_Delay.c \
 ../APIs/Src/ParticulateDataAnalyzer.c \
 ../APIs/Src/data_logger.c \
 ../APIs/Src/fatfs_sd.c \
@@ -22,6 +24,8 @@ C_SRCS += \
 ../APIs/Src/uart.c
 
 OBJS += \
+./APIs/Src/DHT22.o \
+./APIs/Src/DWT_Delay.o \
 ./APIs/Src/ParticulateDataAnalyzer.o \
 ./APIs/Src/data_logger.o \
 ./APIs/Src/fatfs_sd.o \
@@ -39,6 +43,8 @@ OBJS += \
 ./APIs/Src/uart.o
 
 C_DEPS += \
+./APIs/Src/DHT22.d \
+./APIs/Src/DWT_Delay.d \
 ./APIs/Src/ParticulateDataAnalyzer.d \
 ./APIs/Src/data_logger.d \
 ./APIs/Src/fatfs_sd.d \
@@ -63,6 +69,6 @@ APIs/Src/%.o APIs/Src/%.su APIs/Src/%.cyclo: ../APIs/Src/%.c APIs/Src/subdir.mk
 clean: clean-APIs-2f-Src
 
 clean-APIs-2f-Src:
-	-$(RM) ./APIs/Src/ParticulateDataAnalyzer.cyclo ./APIs/Src/ParticulateDataAnalyzer.d ./APIs/Src/ParticulateDataAnalyzer.o ./APIs/Src/ParticulateDataAnalyzer.su ./APIs/Src/data_logger.cyclo ./APIs/Src/data_logger.d ./APIs/Src/data_logger.o ./APIs/Src/data_logger.su ./APIs/Src/fatfs_sd.cyclo ./APIs/Src/fatfs_sd.d ./APIs/Src/fatfs_sd.o ./APIs/Src/fatfs_sd.su ./APIs/Src/microSD.cyclo ./APIs/Src/microSD.d ./APIs/Src/microSD.o ./APIs/Src/microSD.su ./APIs/Src/microSD_utils.cyclo ./APIs/Src/microSD_utils.d ./APIs/Src/microSD_utils.o ./APIs/Src/microSD_utils.su ./APIs/Src/mp_sensors_info.cyclo ./APIs/Src/mp_sensors_info.d ./APIs/Src/mp_sensors_info.o ./APIs/Src/mp_sensors_info.su ./APIs/Src/proceso_observador.cyclo ./APIs/Src/proceso_observador.d ./APIs/Src/proceso_observador.o ./APIs/Src/proceso_observador.su ./APIs/Src/rtc_buildtime.cyclo ./APIs/Src/rtc_buildtime.d ./APIs/Src/rtc_buildtime.o ./APIs/Src/rtc_buildtime.su ./APIs/Src/rtc_ds1307_for_stm32_hal.cyclo ./APIs/Src/rtc_ds1307_for_stm32_hal.d ./APIs/Src/rtc_ds1307_for_stm32_hal.o ./APIs/Src/rtc_ds1307_for_stm32_hal.su ./APIs/Src/rtc_ds3231_for_stm32_hal.cyclo ./APIs/Src/rtc_ds3231_for_stm32_hal.d ./APIs/Src/rtc_ds3231_for_stm32_hal.o ./APIs/Src/rtc_ds3231_for_stm32_hal.su ./APIs/Src/shdlc.cyclo ./APIs/Src/shdlc.d ./APIs/Src/shdlc.o ./APIs/Src/shdlc.su ./APIs/Src/sps30_comm.cyclo ./APIs/Src/sps30_comm.d ./APIs/Src/sps30_comm.o ./APIs/Src/sps30_comm.su ./APIs/Src/sps30_multi.cyclo ./APIs/Src/sps30_multi.d ./APIs/Src/sps30_multi.o ./APIs/Src/sps30_multi.su ./APIs/Src/time_rtc.cyclo ./APIs/Src/time_rtc.d ./APIs/Src/time_rtc.o ./APIs/Src/time_rtc.su ./APIs/Src/uart.cyclo ./APIs/Src/uart.d ./APIs/Src/uart.o ./APIs/Src/uart.su
+	-$(RM) ./APIs/Src/DHT22.cyclo ./APIs/Src/DHT22.d ./APIs/Src/DHT22.o ./APIs/Src/DHT22.su ./APIs/Src/DWT_Delay.cyclo ./APIs/Src/DWT_Delay.d ./APIs/Src/DWT_Delay.o ./APIs/Src/DWT_Delay.su ./APIs/Src/ParticulateDataAnalyzer.cyclo ./APIs/Src/ParticulateDataAnalyzer.d ./APIs/Src/ParticulateDataAnalyzer.o ./APIs/Src/ParticulateDataAnalyzer.su ./APIs/Src/data_logger.cyclo ./APIs/Src/data_logger.d ./APIs/Src/data_logger.o ./APIs/Src/data_logger.su ./APIs/Src/fatfs_sd.cyclo ./APIs/Src/fatfs_sd.d ./APIs/Src/fatfs_sd.o ./APIs/Src/fatfs_sd.su ./APIs/Src/microSD.cyclo ./APIs/Src/microSD.d ./APIs/Src/microSD.o ./APIs/Src/microSD.su ./APIs/Src/microSD_utils.cyclo ./APIs/Src/microSD_utils.d ./APIs/Src/microSD_utils.o ./APIs/Src/microSD_utils.su ./APIs/Src/mp_sensors_info.cyclo ./APIs/Src/mp_sensors_info.d ./APIs/Src/mp_sensors_info.o ./APIs/Src/mp_sensors_info.su ./APIs/Src/proceso_observador.cyclo ./APIs/Src/proceso_observador.d ./APIs/Src/proceso_observador.o ./APIs/Src/proceso_observador.su ./APIs/Src/rtc_buildtime.cyclo ./APIs/Src/rtc_buildtime.d ./APIs/Src/rtc_buildtime.o ./APIs/Src/rtc_buildtime.su ./APIs/Src/rtc_ds1307_for_stm32_hal.cyclo ./APIs/Src/rtc_ds1307_for_stm32_hal.d ./APIs/Src/rtc_ds1307_for_stm32_hal.o ./APIs/Src/rtc_ds1307_for_stm32_hal.su ./APIs/Src/rtc_ds3231_for_stm32_hal.cyclo ./APIs/Src/rtc_ds3231_for_stm32_hal.d ./APIs/Src/rtc_ds3231_for_stm32_hal.o ./APIs/Src/rtc_ds3231_for_stm32_hal.su ./APIs/Src/shdlc.cyclo ./APIs/Src/shdlc.d ./APIs/Src/shdlc.o ./APIs/Src/shdlc.su ./APIs/Src/sps30_comm.cyclo ./APIs/Src/sps30_comm.d ./APIs/Src/sps30_comm.o ./APIs/Src/sps30_comm.su ./APIs/Src/sps30_multi.cyclo ./APIs/Src/sps30_multi.d ./APIs/Src/sps30_multi.o ./APIs/Src/sps30_multi.su ./APIs/Src/time_rtc.cyclo ./APIs/Src/time_rtc.d ./APIs/Src/time_rtc.o ./APIs/Src/time_rtc.su ./APIs/Src/uart.cyclo ./APIs/Src/uart.d ./APIs/Src/uart.o ./APIs/Src/uart.su
 
 .PHONY: clean-APIs-2f-Src
