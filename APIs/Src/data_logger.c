@@ -142,8 +142,9 @@ bool data_logger_store_measurement(uint8_t sensor_id, ConcentracionesPM valores,
     // Almacenar en buffer de alta frecuencia
     buffer_circular_agregar(&buffer_alta_frecuencia, &nueva_medicion);
 
-    // Actualizar buffers de hora y día según corresponda
-    // (implementación pendiente)
+    // También almacenar en los buffers de hora y día
+    buffer_circular_agregar(&buffer_hora, &nueva_medicion);
+    buffer_circular_agregar(&buffer_dia, &nueva_medicion);
 
     return true;
 }
@@ -550,5 +551,11 @@ void build_iso8601_timestamp(char * buffer, size_t len, const ParticulateData * 
     snprintf(buffer, len, "%04u-%02u-%02uT%02u:%02u:%02uZ", data->year, data->month, data->day,
              data->hour, data->min, data->sec);
 }
+
+#ifdef UNIT_TEST
+BufferCircular *get_buffer_high_freq(void) { return &buffer_alta_frecuencia; }
+BufferCircular *get_buffer_hourly(void) { return &buffer_hora; }
+BufferCircular *get_buffer_daily(void) { return &buffer_dia; }
+#endif
 
 /* === End of documentation ==================================================================== */
