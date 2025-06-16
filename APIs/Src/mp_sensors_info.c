@@ -56,23 +56,27 @@ MP_SensorInfo sensor_metadata[NUM_SENSORS_SPS30] = {
 void mp_sensors_info_init(void) {
     for (int i = 0; i < sensores_disponibles; ++i) {
         SPS30 * sensor = &sensores_sps30[i].sensor;
+        char serial[SENSOR_SERIAL_MAX_LEN] = {0};
 
         // Obtener serial dinámicamente
-        sensor->serial_number(sensor);
+        if (sensor->serial_number(sensor, serial)) {
+            // Guardar serial en metadatos
+            strncpy(sensor_metadata[i].serial_number, serial, SENSOR_SERIAL_MAX_LEN - 1);
+            sensor_metadata[i].serial_number[SENSOR_SERIAL_MAX_LEN - 1] = '\0';
 
-        // Guardar serial en metadatos
-        strncpy(sensor_metadata[i].serial_number, (char *)sensor->serial_buf,
-                SENSOR_SERIAL_MAX_LEN - 1);
-        sensor_metadata[i].serial_number[SENSOR_SERIAL_MAX_LEN - 1] = '\0';
+            // Mensaje UART de registro
+            uart_print("Sensor ID: %d -> Serial: %s\n", sensores_sps30[i].id, serial);
+        } else {
+            strncpy(sensor_metadata[i].serial_number, "UNKNOWN", SENSOR_SERIAL_MAX_LEN - 1);
+            sensor_metadata[i].serial_number[SENSOR_SERIAL_MAX_LEN - 1] = '\0';
+            uart_print("[WARN] Sensor ID: %d -> No se pudo obtener el número de serie\n",
+                       sensores_sps30[i].id);
+        }
 
         // Nombre de ubicación fijo (puede adaptarse por sensor si es necesario)
         strncpy(sensor_metadata[i].location_name, LOCATION_NAME,
                 sizeof(sensor_metadata[i].location_name) - 1);
         sensor_metadata[i].location_name[sizeof(sensor_metadata[i].location_name) - 1] = '\0';
-
-        // Mensaje UART de registro
-        uart_print("Sensor ID: %d -> Serial: %s\n", sensores_sps30[i].id,
-                   sensor_metadata[i].serial_number);
     }
 }
 

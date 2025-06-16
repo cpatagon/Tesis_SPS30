@@ -42,6 +42,8 @@
 #include "DHT22.h"
 #include "sensors.h"
 
+#include "sistema_init.h"
+
 #include "test_format_csv.h"
 /* USER CODE END Includes */
 
@@ -126,25 +128,34 @@ int main(void) {
     MX_SPI1_Init();
     MX_FATFS_Init();
     /* USER CODE BEGIN 2 */
-    // debug_sd_init();
-
-    /*
-      HAL_Delay(200);
-      //probar_spi_sd();           // <== Esto
-
-      uart_print("Inicializando sistema de almacenamiento de datos 1...\n");
-    */
 
     uart_debug = &huart3;
 
+    /* Initialization welcome message */
+    uart_print("\n\n-------------------------------------------------------------------\n");
+    uart_print("|   Sistema de Monitoreo de Material Particulado  |\n");
+    uart_print("---------------------------------------------------------------------\n");
+
+    bool sistema_ok = sistema_verificar_componentes();
+
+    if (!sistema_ok) {
+        uart_print("[WARN] Error en la verificación del sistema. Algunos componentes no están "
+                   "operativos.\r\n");
+        // Aquí podrías registrar el error, encender un LED de advertencia o guardar en un log.
+    } else {
+        uart_print("[INFO] Todos los componentes verificados correctamente.\r\n");
+    }
+
     // Crea una nueva instancia de MicroSD
     MicroSD * sd =
-        microSD_create(&huart3, "prueba3.txt", "/"); // Inicialización con el directorio raíz
+        microSD_create(&huart3, "initlog.txt", "/"); // Inicialización con el directorio raíz
     uart_print("Inicializando sistema de almacenamiento de datos 1A ...\n");
+
     if (sd == NULL) {
         // Manejar error de creación
         Error_Handler();
     }
+
     uart_print("fin Inicializando sistema de almacenamiento de datos 4...\n");
     microSD_setDirectory(sd, "/"); // Cambia el directorio según sea necesario
 
@@ -162,37 +173,6 @@ int main(void) {
     //    test_format_csv_line();
 
     RTC_ReceiveTimeFromTerminal(&huart3);
-
-    // rtc_set_test_time(); // <- llamada de prueba
-
-    /*TEST*/
-
-    // char fecha_hora[32];
-    // obtener_fecha_hora(fecha_hora);
-    // uart_printf("Fecha y hora actual: %s\r\n", fecha_hora);
-
-    /*
-     inicializar_sensores_sps30();
-   */
-
-    /*Inicializar el objeto SPS30 con el manejador de UART*/
-
-    /* Initialize RTC */
-
-    //  uart_print("Inicializando RTC DS3231...\n");
-    // time_rtc_Init(&hi2c2);
-
-    /* Initialization welcome message */
-    uart_print("\n\n-----------------------------------------------------------\n");
-    uart_print("*** Sistema de Monitoreo de Material Particulado ***\n");
-    uart_print("-----------------------------------------------------------\n");
-
-    /* Initialize RTC */
-    //  uart_print("Inicializando RTC DS1307...\n");
-    // time_rtc_Init(&hi2c2);
-
-    /* Initialize data logger */
-    //     uart_print("Inicializando sistema de almacenamiento de datos...\n");
 
     /* Initialize SPS30 sensors array */
 
@@ -230,7 +210,7 @@ int main(void) {
         if (DHT22_Read(&dhtB, &sensorData) == DHT22_OK) {
             temp_cam = sensorData.temperatura;
             hum_cam = sensorData.humedad;
-            uart_print("Cámara: Temp: %.1f C, Hum: %.1f%%\n", temp_cam, hum_cam);
+            uart_print("Camara: Temp: %.1f C, Hum: %.1f%%\n", temp_cam, hum_cam);
         } else {
             uart_print("Error leyendo DHT22 cámara\n");
         }
@@ -240,7 +220,7 @@ int main(void) {
         char msg_buffer[128];
         time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
 
-        snprintf(msg_buffer, sizeof(msg_buffer), "\n=== Ciclo de medición #%lu: %s ===\n",
+        snprintf(msg_buffer, sizeof(msg_buffer), "\n=== Ciclo de medicion #%lu: %s ===\n",
                  ++ciclo_contador, datetime_buffer);
         uart_print(msg_buffer);
 
@@ -256,7 +236,7 @@ int main(void) {
 
             float pm25_avg = data_logger_get_average_pm25(0U, 10U);
             snprintf(msg_buffer, sizeof(msg_buffer),
-                     "Promedio PM2.5 (últimas 10 mediciones): %.2f ug/m3\n", pm25_avg);
+                     "Promedio PM2.5 (ultimas 10 mediciones): %.2f ug/m3\n", pm25_avg);
             uart_print(msg_buffer);
         }
 

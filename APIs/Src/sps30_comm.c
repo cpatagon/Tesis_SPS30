@@ -45,16 +45,23 @@ void sps30_receive_async(SPS30 * self, uint8_t * dataBuffer, uint16_t bufferSize
     HAL_UART_Receive(self->huart, dataBuffer, bufferSize, 100);
 }
 
-void sps30_send_receive(SPS30 * self, const uint8_t * command, uint16_t commandSize,
+bool sps30_send_receive(SPS30 * self, const uint8_t * command, uint16_t commandSize,
                         uint8_t * dataBuffer, uint16_t bufferSize) {
-    HAL_UART_Transmit(self->huart, command, commandSize, 100);
-    HAL_UART_Receive(self->huart, dataBuffer, bufferSize, 100);
+    if (HAL_UART_Transmit(self->huart, command, commandSize, 100) != HAL_OK) {
+        return false;
+    }
+
+    if (HAL_UART_Receive(self->huart, dataBuffer, bufferSize, 100) != HAL_OK) {
+        return false;
+    }
+
+    return true;
 }
 
 void sps30_start_measurement(SPS30 * self) {
     uint8_t startCmd[] = SPS30_FRAME_START_MEASUREMENT; // Comando para iniciar la medición
-    uint8_t dataBuf[BUFFER_SIZE] = {0};      // Buffer para almacenar la respuesta del sensor
-    char respuestaStr[BUFFER_SIZE_RESPONSE]; // Buffer para el mensaje de longitud de respuesta
+    uint8_t dataBuf[BUFFER_SIZE] = {0}; // Buffer para almacenar la respuesta del sensor
+    // char respuestaStr[BUFFER_SIZE_RESPONSE]; // Buffer para el mensaje de longitud de respuesta
 
     // Envío del comando de inicio de medición
     // uart_print(MSG_INICIO_MEDICION);               // Notifica por UART el inicio de la operación
@@ -68,8 +75,8 @@ void sps30_start_measurement(SPS30 * self) {
     // uart_vector_print(sizeof(dataBuf), dataBuf);   // Muestra la respuesta recibida
 
     // Cálculo y visualización de la longitud de la respuesta
-    int longRespuesta = SHDLC_CalculateDataSize(
-        dataBuf, sizeof(dataBuf)); // Calcula la longitud de los datos útiles
+    //   int longRespuesta = SHDLC_CalculateDataSize(
+    //     dataBuf, sizeof(dataBuf)); // Calcula la longitud de los datos útiles
     // snprintf(respuestaStr, sizeof(respuestaStr), MENSAJE_SIZE_RESPUESTA, longRespuesta);  //
     // Formatea el mensaje de longitud uart_print(respuestaStr); // Imprime la longitud de la
     // respuesta
@@ -78,7 +85,7 @@ void sps30_start_measurement(SPS30 * self) {
 void sps30_stop_measurement(SPS30 * self) {
     uint8_t stopCmd[] = SPS30_FRAME_STOP_MEASUREMENT;
     uint8_t dataBuf[BUFFER_SIZE_STOP_MEASUREMENT] = {0};
-    char respuestaStr[BUFFER_SIZE_RESPONSE];
+    // char respuestaStr[BUFFER_SIZE_RESPONSE];
 
     // uart_print(MSG_SOLICITAR);
     // uart_vector_print(sizeof(stopCmd), stopCmd);
@@ -89,7 +96,7 @@ void sps30_stop_measurement(SPS30 * self) {
     // uart_print(MSG_RESPUESTA);
     // uart_vector_print(sizeof(dataBuf), dataBuf);
 
-    int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
+    //  int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
     // snprintf(respuestaStr, sizeof(respuestaStr), MENSAJE_SIZE_RESPUESTA, longRespuesta);
     // uart_print(respuestaStr);
 }
@@ -97,7 +104,7 @@ void sps30_stop_measurement(SPS30 * self) {
 void sps30_sleep(SPS30 * self) {
     uint8_t sleepCmd[] = SPS30_FRAME_SLEEP;
     uint8_t dataBuf[BUFFER_SIZE_SLEEP] = {0};
-    char respuestaStr[BUFFER_SIZE_RESPONSE];
+    //  char respuestaStr[BUFFER_SIZE_RESPONSE];
 
     // uart_print(MSG_SOLICITAR);
     // uart_vector_print(sizeof(sleepCmd), sleepCmd);
@@ -105,7 +112,7 @@ void sps30_sleep(SPS30 * self) {
     // uart_print(MSG_RESPUESTA);
     // uart_vector_print(sizeof(dataBuf), dataBuf);
 
-    int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
+    //    int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
     // snprintf(respuestaStr, sizeof(respuestaStr), MENSAJE_SIZE_RESPUESTA, longRespuesta);
     // uart_print(respuestaStr);
 }
@@ -115,7 +122,7 @@ void sps30_read_data(SPS30 * self) {
     uint8_t dataBuf[BUFFER_SIZE_READ_DATA] = {0};
     uint8_t originalData[BUFFER_SIZE_READ_DATA] = {0};
     ConcentracionesPM concentraciones;
-    char respuestaStr[BUFFER_SIZE_RESPONSE];
+    //   char respuestaStr[BUFFER_SIZE_RESPONSE];
 
     // uart_print(MSG_SOLICITAR);
     // uart_vector_print(sizeof(readCmd), readCmd);
@@ -138,7 +145,7 @@ void sps30_read_data(SPS30 * self) {
 
     SHDLC_llenarConcentraciones(&concentraciones, Newframe.myVector);
 
-    char buffer[BUFFER_PRINT_CONCENTRATION];
+    //  char buffer[BUFFER_PRINT_CONCENTRATION];
     // sprintf(buffer, FORMATO_CONCENTRACION_PM1_0, concentraciones.pm1_0);
     // uart_print(buffer);
     // sprintf(buffer, FORMATO_CONCENTRACION_PM2_5, concentraciones.pm2_5);
@@ -166,24 +173,42 @@ ConcentracionesPM sps30_get_concentrations(SPS30 * self) {
     return concentraciones;
 }
 
-void sps30_serial_number(SPS30 * self) {
+bool sps30_serial_number(SPS30 * self, char * out_serial) {
     static const uint8_t cmd_serial[] = SPS30_FRAME_SERIAL_NUMBER;
-    uint8_t respuesta[48] = {0}; // El número de serie está en los primeros 32 bytes
+    uint8_t respuesta[48] = {0};
+    /*
+    if (!self || !out_serial) {
+        return false;
+    }
+
+    // Ejecutar comando y verificar si fue exitoso
+    bool ok = self->send_receive(self, cmd_serial, sizeof(cmd_serial), respuesta,
+    sizeof(respuesta)); if (!ok) { return false;
+    }
+
+    // Verificar cabecera del frame SHDLC
+    if (respuesta[0] != 0xD3 || respuesta[1] != 0x00) {
+        return false;
+    }
+*/
 
     self->send_receive(self, cmd_serial, sizeof(cmd_serial), respuesta, sizeof(respuesta));
 
-    // El número de serie comienza en el byte 4
-    strncpy(self->serial_buf, (char *)&respuesta[4], SERIAL_BUFFER_LEN - 1);
-    self->serial_buf[SERIAL_BUFFER_LEN - 1] = '\0'; // Seguridad por si no hay \0 en respuesta
+    if (respuesta[0] == '\0') {
+        return false;
+    }
+    // Copiar serial: desde byte 4 hasta byte 4+32 (o menos)
+    strncpy(out_serial, (const char *)&respuesta[5], SERIAL_BUFFER_LEN - 1);
+    out_serial[SERIAL_BUFFER_LEN - 1] = '\0'; // Terminar manualmente por seguridad
 
-    uart_print("Sensor UART: %p -> Serial: %s\n", self->huart, self->serial_buf);
+    return true;
 }
 
 void sps30_wake_up(SPS30 * self) {
     uint8_t Pulse = SPS30_PULSE_WAKE_UP;
     uint8_t readCmd[] = SPS30_FRAME_WAKE_UP;
     uint8_t dataBuf[BUFFER_SIZE_WAKEUP] = {0};
-    char respuestaStr[BUFFER_SIZE_RESPONSE];
+    //   char respuestaStr[BUFFER_SIZE_RESPONSE];
 
     // uart_print(MSG_SOLICITAR);
     // uart_vector_print(sizeof(readCmd), readCmd);
@@ -193,7 +218,7 @@ void sps30_wake_up(SPS30 * self) {
     // uart_print(MSG_RESPUESTA);
     // uart_vector_print(sizeof(dataBuf), dataBuf);
 
-    int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
+    //   int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
     // snprintf(respuestaStr, sizeof(respuestaStr), MENSAJE_SIZE_RESPUESTA, longRespuesta);
     // uart_print(respuestaStr);
 }

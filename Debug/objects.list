@@ -13,6 +13,7 @@
 "./APIs/Src/rtc_ds3231_for_stm32_hal.o"
 "./APIs/Src/sensor.o"
 "./APIs/Src/shdlc.o"
+"./APIs/Src/sistema_init.o"
 "./APIs/Src/sps30_comm.o"
 "./APIs/Src/sps30_multi.o"
 "./APIs/Src/time_rtc.o"
