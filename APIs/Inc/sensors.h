@@ -1,9 +1,9 @@
 /*
  * Nombre del archivo: sensors.h
- * Descripción: [Breve descripción del archivo]
+ * Descripción: Declaraciones para sensores ambientales y de partículas
  * Autor: lgomez
  * Creado en: 15-06-2025
- * Derechos de Autor: (C) 2023 [Tu nombre o el de tu organización]
+ * Derechos de Autor: (C) 2023 Luis Gómez CESE FiUBA
  * Licencia: GNU General Public License v3.0
  *
  * Este programa es software libre: puedes redistribuirlo y/o modificarlo
@@ -28,25 +28,31 @@
  ** @brief
  **/
 
-/* === Headers files inclusions ================================================================ */
+/* === Headers files inclusions
+ * ================================================================ */
 
-#include "stm32f4xx_hal.h"
-#include "sps30_multi.h"
 #include "DHT22.h"
 #include "sps30_multi.h"
+#include "stm32f4xx_hal.h"
 
-/* === Cabecera C++ ============================================================================ */
+/* === Cabecera C++
+ * ============================================================================
+ */
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* === Public macros definitions =============================================================== */
+/* === Public macros definitions
+ * =============================================================== */
 
-/* === Public data type declarations =========================================================== */
+/* === Public data type declarations
+ * =========================================================== */
 
-/* === Public variable declarations ============================================================ */
+/* === Public variable declarations
+ * ============================================================ */
 
-/* === Sensores de Material Particulado (SPS30) ============================================= */
+/* === Sensores de Material Particulado (SPS30)
+ * ============================================= */
 
 extern DHT22_HandleTypeDef dht_ambiente;
 
@@ -57,18 +63,22 @@ extern SPS30 sps30_A;
 extern SPS30 sps30_B;
 extern SPS30 sps30_C;
 
-/* === Sensores de Temperatura y Humedad (DHT22) ============================================ */
+/* === Sensores de Temperatura y Humedad (DHT22)
+ * ============================================ */
 extern DHT22_HandleTypeDef dhtA;
 extern DHT22_HandleTypeDef dhtB;
 
-/* === Public function declarations ============================================================ */
+/* === Public function declarations
+ * ============================================================ */
 
 /**
- * @brief Inicializa todos los sensores SPS30 y DHT22 con sus GPIOs correspondientes.
+ * @brief Inicializa todos los sensores SPS30 y DHT22 con sus GPIOs
+ * correspondientes.
  */
 void sensors_init_all(void);
 
-/* === End of documentation ==================================================================== */
+/* === End of documentation
+ * ==================================================================== */
 
 #ifdef __cplusplus
 }
