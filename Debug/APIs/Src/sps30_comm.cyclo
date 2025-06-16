@@ -7,5 +7,5 @@ sps30_comm.c:104:6:sps30_sleep	1
 sps30_comm.c:120:6:sps30_read_data	1
 sps30_comm.c:159:19:sps30_get_concentrations	1
 sps30_comm.c:176:6:sps30_serial_number	2
-sps30_comm.c:210:6:sps30_wake_up	1
-sps30_comm.c:229:6:SPS30_init	1
+sps30_comm.c:207:6:sps30_wake_up	1
+sps30_comm.c:226:6:SPS30_init	1

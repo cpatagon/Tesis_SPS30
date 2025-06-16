@@ -58,4 +58,3 @@
 "./Middlewares/FatFs/ff.o"
 "./Middlewares/FatFs/ff_gen_drv.o"
 "./Middlewares/FatFs/syscall.o"
-"./Tests/test_format_csv.o"

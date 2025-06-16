@@ -29,4 +29,3 @@ Drivers/STM32F4xx_HAL_Driver \
 FATFS/App \
 FATFS/Target \
 Middlewares/FatFs \
-Tests \

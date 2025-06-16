@@ -29,23 +29,23 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  12 .ARM.attributes 00000030  00000000  00000000  0003034c  2**0
                   CONTENTS, READONLY
- 13 .debug_info   0001ed74  00000000  00000000  0003037c  2**0
+ 13 .debug_info   0001ed75  00000000  00000000  0003037c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_abbrev 0000517d  00000000  00000000  0004f0f0  2**0
+ 14 .debug_abbrev 00005192  00000000  00000000  0004f0f1  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_aranges 000015f0  00000000  00000000  00054270  2**3
+ 15 .debug_aranges 000015f0  00000000  00000000  00054288  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_ranges 00001388  00000000  00000000  00055860  2**3
+ 16 .debug_ranges 00001388  00000000  00000000  00055878  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_macro  0002b899  00000000  00000000  00056be8  2**0
+ 17 .debug_macro  0002b943  00000000  00000000  00056c00  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_line   00027206  00000000  00000000  00082481  2**0
+ 18 .debug_line   00027206  00000000  00000000  00082543  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .debug_str    000e2c7c  00000000  00000000  000a9687  2**0
+ 19 .debug_str    000e2c8e  00000000  00000000  000a9749  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 20 .comment      00000050  00000000  00000000  0018c303  2**0
+ 20 .comment      00000050  00000000  00000000  0018c3d7  2**0
                   CONTENTS, READONLY
- 21 .debug_frame  00006ce8  00000000  00000000  0018c354  2**2
+ 21 .debug_frame  00006ce8  00000000  00000000  0018c428  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -5282,7 +5282,8 @@ void mp_sensors_info_init(void) {
  8002a4e:	331f      	adds	r3, #31
  8002a50:	2200      	movs	r2, #0
  8002a52:	701a      	strb	r2, [r3, #0]
-            uart_print("[WARN] Sensor ID: %d -> No se pudo obtener el número de serie\n", sensores_sps30[i].id);
+            uart_print("[WARN] Sensor ID: %d -> No se pudo obtener el número de serie\n",
+                       sensores_sps30[i].id);
  8002a54:	4a19      	ldr	r2, [pc, #100]	; (8002abc <mp_sensors_info_init+0x128>)
  8002a56:	6a7b      	ldr	r3, [r7, #36]	; 0x24
  8002a58:	2158      	movs	r1, #88	; 0x58
@@ -5290,6 +5291,7 @@ void mp_sensors_info_init(void) {
  8002a5e:	4413      	add	r3, r2
  8002a60:	3350      	adds	r3, #80	; 0x50
  8002a62:	781b      	ldrb	r3, [r3, #0]
+            uart_print("[WARN] Sensor ID: %d -> No se pudo obtener el número de serie\n",
  8002a64:	4619      	mov	r1, r3
  8002a66:	4819      	ldr	r0, [pc, #100]	; (8002acc <mp_sensors_info_init+0x138>)
  8002a68:	f001 fa40 	bl	8003eec <uart_print>
@@ -6805,10 +6807,10 @@ void SHDLC_llenarConcentraciones(ConcentracionesPM * concentraciones, uint8_t * 
  80034ee:	bd80      	pop	{r7, pc}
 
 080034f0 <sistema_verificar_componentes>:
+
+/* === Private function implementation ========================================================= */
+
 /* === Public function implementation ========================================================== */
-
-
-
 
 bool sistema_verificar_componentes(void) {
  80034f0:	b580      	push	{r7, lr}
@@ -6899,7 +6901,8 @@ bool sistema_verificar_componentes(void) {
  8003584:	f000 fcb2 	bl	8003eec <uart_print>
  8003588:	e00e      	b.n	80035a8 <sistema_verificar_componentes+0xb8>
         } else {
-            uart_print("[ERROR] No se pudo leer el numero de serie del sensor SPS30 ID %d\n", sensores_sps30[i].id);
+            uart_print("[ERROR] No se pudo leer el numero de serie del sensor SPS30 ID %d\n",
+                       sensores_sps30[i].id);
  800358a:	4a27      	ldr	r2, [pc, #156]	; (8003628 <sistema_verificar_componentes+0x138>)
  800358c:	6abb      	ldr	r3, [r7, #40]	; 0x28
  800358e:	2158      	movs	r1, #88	; 0x58
@@ -6907,6 +6910,7 @@ bool sistema_verificar_componentes(void) {
  8003594:	4413      	add	r3, r2
  8003596:	3350      	adds	r3, #80	; 0x50
  8003598:	781b      	ldrb	r3, [r3, #0]
+            uart_print("[ERROR] No se pudo leer el numero de serie del sensor SPS30 ID %d\n",
  800359a:	4619      	mov	r1, r3
  800359c:	4824      	ldr	r0, [pc, #144]	; (8003630 <sistema_verificar_componentes+0x140>)
  800359e:	f000 fca5 	bl	8003eec <uart_print>
@@ -6972,7 +6976,7 @@ bool sistema_verificar_componentes(void) {
  8003608:	f000 fc70 	bl	8003eec <uart_print>
     }
 
-    return estado_ok;  // Se puede ignorar si quieres que el sistema continúe de todos modos
+    return estado_ok; // Se puede ignorar si quieres que el sistema continúe de todos modos
  800360c:	f897 302f 	ldrb.w	r3, [r7, #47]	; 0x2f
 }
  8003610:	4618      	mov	r0, r3
@@ -7107,7 +7111,7 @@ void sps30_start_measurement(SPS30 * self) {
  80036ee:	f107 0310 	add.w	r3, r7, #16
  80036f2:	e892 0003 	ldmia.w	r2, {r0, r1}
  80036f6:	e883 0003 	stmia.w	r3, {r0, r1}
-    uint8_t dataBuf[BUFFER_SIZE] = {0};      // Buffer para almacenar la respuesta del sensor
+    uint8_t dataBuf[BUFFER_SIZE] = {0}; // Buffer para almacenar la respuesta del sensor
  80036fa:	2300      	movs	r3, #0
  80036fc:	60bb      	str	r3, [r7, #8]
  80036fe:	f107 030c 	add.w	r3, r7, #12
@@ -7116,7 +7120,7 @@ void sps30_start_measurement(SPS30 * self) {
  8003706:	801a      	strh	r2, [r3, #0]
  8003708:	460a      	mov	r2, r1
  800370a:	709a      	strb	r2, [r3, #2]
-    //char respuestaStr[BUFFER_SIZE_RESPONSE]; // Buffer para el mensaje de longitud de respuesta
+    // char respuestaStr[BUFFER_SIZE_RESPONSE]; // Buffer para el mensaje de longitud de respuesta
 
     // Envío del comando de inicio de medición
     // uart_print(MSG_INICIO_MEDICION);               // Notifica por UART el inicio de la operación
@@ -7140,8 +7144,8 @@ void sps30_start_measurement(SPS30 * self) {
  8003728:	2207      	movs	r2, #7
  800372a:	6878      	ldr	r0, [r7, #4]
  800372c:	4798      	blx	r3
- //   int longRespuesta = SHDLC_CalculateDataSize(
-   //     dataBuf, sizeof(dataBuf)); // Calcula la longitud de los datos útiles
+    //   int longRespuesta = SHDLC_CalculateDataSize(
+    //     dataBuf, sizeof(dataBuf)); // Calcula la longitud de los datos útiles
     // snprintf(respuestaStr, sizeof(respuestaStr), MENSAJE_SIZE_RESPUESTA, longRespuesta);  //
     // Formatea el mensaje de longitud uart_print(respuestaStr); // Imprime la longitud de la
     // respuesta
@@ -7172,7 +7176,7 @@ void sps30_stop_measurement(SPS30 * self) {
  8003756:	60bb      	str	r3, [r7, #8]
  8003758:	2300      	movs	r3, #0
  800375a:	60fb      	str	r3, [r7, #12]
-   // char respuestaStr[BUFFER_SIZE_RESPONSE];
+    // char respuestaStr[BUFFER_SIZE_RESPONSE];
 
     // uart_print(MSG_SOLICITAR);
     // uart_vector_print(sizeof(stopCmd), stopCmd);
@@ -7196,7 +7200,7 @@ void sps30_stop_measurement(SPS30 * self) {
  800377c:	4798      	blx	r3
     // uart_vector_print(sizeof(dataBuf), dataBuf);
 
-  //  int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
+    //  int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
     // snprintf(respuestaStr, sizeof(respuestaStr), MENSAJE_SIZE_RESPUESTA, longRespuesta);
     // uart_print(respuestaStr);
 }
@@ -7226,7 +7230,7 @@ void sps30_sleep(SPS30 * self) {
  80037a6:	60bb      	str	r3, [r7, #8]
  80037a8:	2300      	movs	r3, #0
  80037aa:	60fb      	str	r3, [r7, #12]
-  //  char respuestaStr[BUFFER_SIZE_RESPONSE];
+    //  char respuestaStr[BUFFER_SIZE_RESPONSE];
 
     // uart_print(MSG_SOLICITAR);
     // uart_vector_print(sizeof(sleepCmd), sleepCmd);
@@ -7242,7 +7246,7 @@ void sps30_sleep(SPS30 * self) {
  80037c0:	47a0      	blx	r4
     // uart_vector_print(sizeof(dataBuf), dataBuf);
 
-//    int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
+    //    int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
     // snprintf(respuestaStr, sizeof(respuestaStr), MENSAJE_SIZE_RESPUESTA, longRespuesta);
     // uart_print(respuestaStr);
 }
@@ -7284,7 +7288,7 @@ void sps30_read_data(SPS30 * self) {
  8003808:	4618      	mov	r0, r3
  800380a:	f008 fd43 	bl	800c294 <memset>
     ConcentracionesPM concentraciones;
- //   char respuestaStr[BUFFER_SIZE_RESPONSE];
+    //   char respuestaStr[BUFFER_SIZE_RESPONSE];
 
     // uart_print(MSG_SOLICITAR);
     // uart_vector_print(sizeof(readCmd), readCmd);
@@ -7502,7 +7506,7 @@ bool sps30_serial_number(SPS30 * self, char * out_serial) {
  80039b2:	4619      	mov	r1, r3
  80039b4:	6838      	ldr	r0, [r7, #0]
  80039b6:	f009 fd17 	bl	800d3e8 <strncpy>
-    out_serial[SERIAL_BUFFER_LEN - 1] = '\0';  // Terminar manualmente por seguridad
+    out_serial[SERIAL_BUFFER_LEN - 1] = '\0'; // Terminar manualmente por seguridad
  80039ba:	683b      	ldr	r3, [r7, #0]
  80039bc:	3320      	adds	r3, #32
  80039be:	2200      	movs	r2, #0
@@ -7518,8 +7522,6 @@ bool sps30_serial_number(SPS30 * self, char * out_serial) {
  80039cc:	08012684 	.word	0x08012684
 
 080039d0 <sps30_wake_up>:
-
-
 
 void sps30_wake_up(SPS30 * self) {
  80039d0:	b590      	push	{r4, r7, lr}
@@ -7544,7 +7546,7 @@ void sps30_wake_up(SPS30 * self) {
  80039f4:	60bb      	str	r3, [r7, #8]
  80039f6:	2300      	movs	r3, #0
  80039f8:	60fb      	str	r3, [r7, #12]
- //   char respuestaStr[BUFFER_SIZE_RESPONSE];
+    //   char respuestaStr[BUFFER_SIZE_RESPONSE];
 
     // uart_print(MSG_SOLICITAR);
     // uart_vector_print(sizeof(readCmd), readCmd);
@@ -7570,7 +7572,7 @@ void sps30_wake_up(SPS30 * self) {
  8003a22:	47a0      	blx	r4
     // uart_vector_print(sizeof(dataBuf), dataBuf);
 
- //   int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
+    //   int longRespuesta = SHDLC_CalculateDataSize(dataBuf, sizeof(dataBuf));
     // snprintf(respuestaStr, sizeof(respuestaStr), MENSAJE_SIZE_RESPUESTA, longRespuesta);
     // uart_print(respuestaStr);
 }
@@ -8680,7 +8682,6 @@ int main(void) {
  80041b0:	4891      	ldr	r0, [pc, #580]	; (80043f8 <main+0x294>)
  80041b2:	f7ff fe9b 	bl	8003eec <uart_print>
 
-
     bool sistema_ok = sistema_verificar_componentes();
  80041b6:	f7ff f99b 	bl	80034f0 <sistema_verificar_componentes>
  80041ba:	4603      	mov	r3, r0
@@ -8692,10 +8693,11 @@ int main(void) {
  80041c8:	b2db      	uxtb	r3, r3
  80041ca:	2b00      	cmp	r3, #0
  80041cc:	d003      	beq.n	80041d6 <main+0x72>
-        uart_print("[WARN] Error en la verificación del sistema. Algunos componentes no están operativos.\r\n");
+        uart_print("[WARN] Error en la verificación del sistema. Algunos componentes no están "
  80041ce:	488b      	ldr	r0, [pc, #556]	; (80043fc <main+0x298>)
  80041d0:	f7ff fe8c 	bl	8003eec <uart_print>
  80041d4:	e002      	b.n	80041dc <main+0x78>
+                   "operativos.\r\n");
         // Aquí podrías registrar el error, encender un LED de advertencia o guardar en un log.
     } else {
         uart_print("[INFO] Todos los componentes verificados correctamente.\r\n");
@@ -8703,9 +8705,9 @@ int main(void) {
  80041d8:	f7ff fe88 	bl	8003eec <uart_print>
     }
 
-
     // Crea una nueva instancia de MicroSD
-    MicroSD * sd = microSD_create(&huart3, "initlog.txt", "/"); // Inicialización con el directorio raíz
+    MicroSD * sd =
+        microSD_create(&huart3, "initlog.txt", "/"); // Inicialización con el directorio raíz
  80041dc:	4a89      	ldr	r2, [pc, #548]	; (8004404 <main+0x2a0>)
  80041de:	498a      	ldr	r1, [pc, #552]	; (8004408 <main+0x2a4>)
  80041e0:	4882      	ldr	r0, [pc, #520]	; (80043ec <main+0x288>)
@@ -8761,7 +8763,6 @@ int main(void) {
     RTC_ReceiveTimeFromTerminal(&huart3);
  8004232:	486e      	ldr	r0, [pc, #440]	; (80043ec <main+0x288>)
  8004234:	f7ff fce6 	bl	8003c04 <RTC_ReceiveTimeFromTerminal>
-
 
     /* Initialize SPS30 sensors array */
 

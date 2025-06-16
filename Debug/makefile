@@ -9,7 +9,6 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
--include Tests/subdir.mk
 -include Middlewares/FatFs/subdir.mk
 -include FATFS/Target/subdir.mk
 -include FATFS/App/subdir.mk
