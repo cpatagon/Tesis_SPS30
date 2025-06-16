@@ -1,9 +1,9 @@
 /*
  * Nombre del archivo: rtc_buildtime.h
- * Descripción: [Breve descripción del archivo]
+ * Descripción: Utilidades para obtener fecha y hora de compilación
  * Autor: lgomez
  * Creado en: May 15, 2025
- * Derechos de Autor: (C) 2023 [Tu nombre o el de tu organización]
+ * Derechos de Autor: (C) 2023 Luis Gómez CESE FiUBA
  * Licencia: GNU General Public License v3.0
  *
  * Este programa es software libre: puedes redistribuirlo y/o modificarlo
@@ -28,28 +28,37 @@
  ** @brief
  **/
 
-/* === Headers files inclusions ================================================================ */
+/* === Headers files inclusions
+ * ================================================================ */
 #include <stdint.h>
 
-/* === Cabecera C++ ============================================================================ */
+/* === Cabecera C++
+ * ============================================================================
+ */
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* === Public macros definitions =============================================================== */
+/* === Public macros definitions
+ * =============================================================== */
 
-/* === Public data type declarations =========================================================== */
+/* === Public data type declarations
+ * =========================================================== */
 
-/* === Public variable declarations ============================================================ */
+/* === Public variable declarations
+ * ============================================================ */
 
-/* === Public function declarations ============================================================ */
+/* === Public function declarations
+ * ============================================================ */
 
 /**
- * @brief Establece el RTC con la fecha y hora de compilación (__DATE__, __TIME__).
+ * @brief Establece el RTC con la fecha y hora de compilación (__DATE__,
+ * __TIME__).
  */
 void RTC_SetFromBuildTime(void);
 
-/* === End of documentation ==================================================================== */
+/* === End of documentation
+ * ==================================================================== */
 
 #ifdef __cplusplus
 }

@@ -1,9 +1,9 @@
 /*
  * Nombre del archivo: sistema_init.h
- * Descripción: [Breve descripción del archivo]
+ * Descripción: Inicialización de periféricos y componentes del sistema
  * Autor: lgomez
  * Creado en: 15-06-2025
- * Derechos de Autor: (C) 2023 [Tu nombre o el de tu organización]
+ * Derechos de Autor: (C) 2023 Luis Gómez CESE FiUBA
  * Licencia: GNU General Public License v3.0
  *
  * Este programa es software libre: puedes redistribuirlo y/o modificarlo
@@ -28,35 +28,44 @@
  ** @brief
  **/
 
-/* === Headers files inclusions ================================================================ */
+/* === Headers files inclusions
+ * ================================================================ */
 
 #include <stdbool.h> // Para tipo bool
 #include <stdint.h>  // Para tipos enteros estándar
 
-/* Si alguna de las funciones usa UART, RTC o necesita estructuras públicas, incluir aquí */
-#include "uart.h"                     // Para funciones como uart_print()
-#include "sps30_multi.h"              // Para acceso a sensores_sps30[]
-#include "DHT22.h"                    // Si se usan funciones como DHT22_ReadSimple
+/* Si alguna de las funciones usa UART, RTC o necesita estructuras públicas,
+ * incluir aquí */
+#include "DHT22.h"       // Si se usan funciones como DHT22_ReadSimple
+#include "data_logger.h" // Para inicialización de microSD
 #include "rtc_ds3231_for_stm32_hal.h" // Para verificación de RTC
-#include "data_logger.h"              // Para inicialización de microSD
+#include "sps30_multi.h"              // Para acceso a sensores_sps30[]
+#include "uart.h"                     // Para funciones como uart_print()
 
-/* === Cabecera C++ ============================================================================ */
+/* === Cabecera C++
+ * ============================================================================
+ */
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* === Public macros definitions =============================================================== */
+/* === Public macros definitions
+ * =============================================================== */
 
-/* === Public data type declarations =========================================================== */
+/* === Public data type declarations
+ * =========================================================== */
 
-/* === Public variable declarations ============================================================ */
+/* === Public variable declarations
+ * ============================================================ */
 
-/* === Public function declarations ============================================================ */
+/* === Public function declarations
+ * ============================================================ */
 
 bool sistema_verificar_componentes(void);
 void sistema_imprimir_datos_iniciales(void);
 
-/* === End of documentation ==================================================================== */
+/* === End of documentation
+ * ==================================================================== */
 
 #ifdef __cplusplus
 }

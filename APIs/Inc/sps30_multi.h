@@ -3,11 +3,12 @@
  * @brief Módulo para manejar múltiples sensores SPS30 en paralelo.
  *
  * Este archivo define la estructura de control y funciones asociadas para
- * inicializar y operar múltiples sensores SPS30 utilizando UARTs independientes.
+ * inicializar y operar múltiples sensores SPS30 utilizando UARTs
+ * independientes.
  *
  * @author lgomez
  * @date 04-05-2025
- * @copyright (C) 2023 [Tu nombre o institución]
+ * @copyright (C) 2023 Luis Gómez CESE FiUBA
  * @license GNU General Public License v3.0
  *
  * Este programa es software libre: puedes redistribuirlo y/o modificarlo
@@ -30,30 +31,36 @@
 extern "C" {
 #endif
 
-/* === Inclusión de archivos de cabecera ====================================================== */
+/* === Inclusión de archivos de cabecera
+ * ====================================================== */
 #include "sps30_comm.h"
 #include "usart.h"
 
-/* === Definiciones públicas de macros ======================================================== */
+/* === Definiciones públicas de macros
+ * ======================================================== */
 #define NUM_SENSORES_SPS30 3 /**< Número de sensores SPS30 a gestionar */
 
-/* === Declaraciones públicas de tipos de datos ============================================== */
+/* === Declaraciones públicas de tipos de datos
+ * ============================================== */
 
 /**
- * @brief Estructura que representa un sensor SPS30 con su configuración asociada.
+ * @brief Estructura que representa un sensor SPS30 con su configuración
+ * asociada.
  */
 typedef struct {
-    SPS30 sensor;              /**< Objeto de comunicación SPS30 */
-    uint8_t id;                /**< ID único del sensor */
-    UART_HandleTypeDef * uart; /**< UART asociada al sensor */
+  SPS30 sensor;             /**< Objeto de comunicación SPS30 */
+  uint8_t id;               /**< ID único del sensor */
+  UART_HandleTypeDef *uart; /**< UART asociada al sensor */
 } SensorSPS30;
 
-/* === Declaraciones públicas de variables ==================================================== */
+/* === Declaraciones públicas de variables
+ * ==================================================== */
 
 extern SensorSPS30 sensores_sps30[NUM_SENSORES_SPS30];
 extern int sensores_disponibles;
 
-/* === Declaraciones públicas de funciones ==================================================== */
+/* === Declaraciones públicas de funciones
+ * ==================================================== */
 
 /**
  * @brief Inicializa las estructuras de los sensores SPS30.
