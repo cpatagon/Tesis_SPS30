@@ -1,9 +1,9 @@
 #ifdef UNIT_TESTING
 #ifndef MICROSD_H
 #define MICROSD_H
-#include "ff.h"
+#include "ff_stub.h"
 typedef struct {
-    int dummy;
+  int dummy;
 } MicroSD;
 #endif
 #endif

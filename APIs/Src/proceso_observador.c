@@ -9,147 +9,118 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-/* === Inclusión de archivos =============================================================== */
+/* === Inclusión de archivos
+ * =============================================================== */
 #include "proceso_observador.h"
-#include "rtc_ds3231_for_stm32_hal.h" // para ds3231_get_datetime()
+#include "DHT22.h"
 #include "data_logger.h"
+#include "rtc_ds3231_for_stm32_hal.h" // para ds3231_get_datetime()
+#include "sensors.h"
 #include "time_rtc.h"
 #include <stdio.h>
 #include <string.h>
-#include "DHT22.h"
-#include "sensors.h"
 
 #include "ParticulateDataAnalyzer.h"
 
-/* === Definición de funciones ============================================================= */
-bool proceso_observador(SPS30 * sensor, uint8_t sensor_id, float temp_amb, float hum_amb) {
-    char datetime_buffer[32];
-    time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
+/* === Definición de funciones
+ * ============================================================= */
 
-    return proceso_observador_with_time(sensor, sensor_id, datetime_buffer, temp_amb, hum_amb);
+static bool proceso_observador_base(SPS30 *sensor, uint8_t sensor_id,
+                                    const char *datetime_str, float temp_amb,
+                                    float hum_amb, float temp_cam,
+                                    float hum_cam, const char *rtc_error_msg);
+
+bool proceso_observador(SPS30 *sensor, uint8_t sensor_id, float temp_amb,
+                        float hum_amb) {
+  char datetime_buffer[32];
+  time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
+
+  return proceso_observador_with_time(sensor, sensor_id, datetime_buffer,
+                                      temp_amb, hum_amb);
 }
 
-bool proceso_observador_with_time(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str,
-                                  float temp_amb, float hum_amb) {
-    int reintentos = NUM_REINT;
+bool proceso_observador_with_time(SPS30 *sensor, uint8_t sensor_id,
+                                  const char *datetime_str, float temp_amb,
+                                  float hum_amb) {
+  float temp_cam = -99.9f;
+  float hum_cam = -99.9f;
 
-    while (reintentos--) {
-        sensor->start_measurement(sensor);
-        HAL_Delay(HAL_DELAY_SIGUIENTE_MEDICION);
+  if (sensor_id == 1) {
+    DHT22_ReadSimple(&dhtA, &temp_cam, &hum_cam);
+  } else if (sensor_id == 2) {
+    DHT22_ReadSimple(&dhtB, &temp_cam, &hum_cam);
+  }
 
-        ConcentracionesPM pm = sensor->get_concentrations(sensor);
-        sensor->stop_measurement(sensor);
-
-        if ((pm.pm1_0 > CONC_MIN_PM && pm.pm1_0 < CONC_MAX_PM) ||
-            (pm.pm2_5 > CONC_MIN_PM && pm.pm2_5 < CONC_MAX_PM) ||
-            (pm.pm4_0 > CONC_MIN_PM && pm.pm4_0 < CONC_MAX_PM) ||
-            (pm.pm10 > CONC_MIN_PM && pm.pm10 < CONC_MAX_PM)) {
-
-            ds3231_time_t dt;
-            if (!ds3231_get_datetime(&dt)) {
-                uart_print("Error leyendo hora del RTC\r\n");
-                return false;
-            }
-
-            // Cámara: usar el mismo sensor DHT asociado (si existe)
-            float temp_cam = -99.9f;
-            float hum_cam = -99.9f;
-
-            if (sensor_id == 1) {
-                DHT22_ReadSimple(&dhtA, &temp_cam, &hum_cam);
-            } else if (sensor_id == 2) {
-                DHT22_ReadSimple(&dhtB, &temp_cam, &hum_cam);
-            }
-
-            // Mensaje UART
-            char buffer[BUFFER_SIZE_MSG_PM_FORMAT];
-            snprintf(buffer, sizeof(buffer), MSG_PM_FORMAT_WITH_TIME, datetime_str, sensor_id,
-                     pm.pm1_0, pm.pm2_5, pm.pm4_0, pm.pm10);
-            uart_print("%s", buffer);
-
-            ParticulateData data = {.sensor_id = sensor_id,
-                                    .pm1_0 = pm.pm1_0,
-                                    .pm2_5 = pm.pm2_5,
-                                    .pm4_0 = pm.pm4_0,
-                                    .pm10 = pm.pm10,
-                                    .temp_amb = temp_amb,
-                                    .hum_amb = hum_amb,
-                                    .temp_cam = temp_cam,
-                                    .hum_cam = hum_cam,
-                                    .year = dt.year,
-                                    .month = dt.month,
-                                    .day = dt.day,
-                                    .hour = dt.hour,
-                                    .min = dt.min,
-                                    .sec = dt.sec};
-
-            data_logger_store_raw(&data);
-            return true;
-        }
-
-        uart_print("%s", MSG_ERROR_REINT);
-    }
-
-    char error_msg[BUFFER_SIZE_MSG_ERROR_FALLO];
-    snprintf(error_msg, sizeof(error_msg), MSG_ERROR_FALLO, datetime_str, sensor_id);
-    uart_print("%s", error_msg);
-    return false;
+  return proceso_observador_base(sensor, sensor_id, datetime_str, temp_amb,
+                                 hum_amb, temp_cam, hum_cam,
+                                 "Error leyendo hora del RTC\r\n");
 }
 
-bool proceso_observador_3PM_2TH(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str,
-                                float temp_amb, float hum_amb, float temp_cam, float hum_cam) {
-    int reintentos = NUM_REINT;
+bool proceso_observador_3PM_2TH(SPS30 *sensor, uint8_t sensor_id,
+                                const char *datetime_str, float temp_amb,
+                                float hum_amb, float temp_cam, float hum_cam) {
+  return proceso_observador_base(sensor, sensor_id, datetime_str, temp_amb,
+                                 hum_amb, temp_cam, hum_cam,
+                                 "⚠️ Error leyendo hora del RTC\r\n");
+}
 
-    while (reintentos--) {
-        sensor->start_measurement(sensor);
-        HAL_Delay(HAL_DELAY_SIGUIENTE_MEDICION);
+static bool proceso_observador_base(SPS30 *sensor, uint8_t sensor_id,
+                                    const char *datetime_str, float temp_amb,
+                                    float hum_amb, float temp_cam,
+                                    float hum_cam, const char *rtc_error_msg) {
+  int reintentos = NUM_REINT;
 
-        ConcentracionesPM pm = sensor->get_concentrations(sensor);
-        sensor->stop_measurement(sensor);
+  while (reintentos--) {
+    sensor->start_measurement(sensor);
+    HAL_Delay(HAL_DELAY_SIGUIENTE_MEDICION);
 
-        if ((pm.pm1_0 > CONC_MIN_PM && pm.pm1_0 < CONC_MAX_PM) ||
-            (pm.pm2_5 > CONC_MIN_PM && pm.pm2_5 < CONC_MAX_PM) ||
-            (pm.pm4_0 > CONC_MIN_PM && pm.pm4_0 < CONC_MAX_PM) ||
-            (pm.pm10 > CONC_MIN_PM && pm.pm10 < CONC_MAX_PM)) {
+    ConcentracionesPM pm = sensor->get_concentrations(sensor);
+    sensor->stop_measurement(sensor);
 
-            ds3231_time_t dt;
-            if (!ds3231_get_datetime(&dt)) {
-                uart_print("⚠️ Error leyendo hora del RTC\r\n");
-                return false;
-            }
+    if ((pm.pm1_0 > CONC_MIN_PM && pm.pm1_0 < CONC_MAX_PM) ||
+        (pm.pm2_5 > CONC_MIN_PM && pm.pm2_5 < CONC_MAX_PM) ||
+        (pm.pm4_0 > CONC_MIN_PM && pm.pm4_0 < CONC_MAX_PM) ||
+        (pm.pm10 > CONC_MIN_PM && pm.pm10 < CONC_MAX_PM)) {
 
-            // Formatear mensaje de depuración
-            char buffer[BUFFER_SIZE_MSG_PM_FORMAT];
-            snprintf(buffer, sizeof(buffer), MSG_PM_FORMAT_WITH_TIME, datetime_str, sensor_id,
-                     pm.pm1_0, pm.pm2_5, pm.pm4_0, pm.pm10);
-            uart_print("%s", buffer);
+      ds3231_time_t dt;
+      if (!ds3231_get_datetime(&dt)) {
+        uart_print("%s", rtc_error_msg);
+        return false;
+      }
 
-            // Cargar estructura
-            ParticulateData data = {.sensor_id = sensor_id,
-                                    .pm1_0 = pm.pm1_0,
-                                    .pm2_5 = pm.pm2_5,
-                                    .pm4_0 = pm.pm4_0,
-                                    .pm10 = pm.pm10,
-                                    .temp_amb = temp_amb,
-                                    .hum_amb = hum_amb,
-                                    .temp_cam = temp_cam,
-                                    .hum_cam = hum_cam,
-                                    .year = dt.year,
-                                    .month = dt.month,
-                                    .day = dt.day,
-                                    .hour = dt.hour,
-                                    .min = dt.min,
-                                    .sec = dt.sec};
+      char buffer[BUFFER_SIZE_MSG_PM_FORMAT];
+      snprintf(buffer, sizeof(buffer), MSG_PM_FORMAT_WITH_TIME, datetime_str,
+               sensor_id, pm.pm1_0, pm.pm2_5, pm.pm4_0, pm.pm10);
+      uart_print("%s", buffer);
 
-            data_logger_store_raw(&data);
-            return true;
-        }
+      ParticulateData data = {
+          .sensor_id = sensor_id,
+          .pm1_0 = pm.pm1_0,
+          .pm2_5 = pm.pm2_5,
+          .pm4_0 = pm.pm4_0,
+          .pm10 = pm.pm10,
+          .temp_amb = temp_amb,
+          .hum_amb = hum_amb,
+          .temp_cam = temp_cam,
+          .hum_cam = hum_cam,
+          .year = dt.year,
+          .month = dt.month,
+          .day = dt.day,
+          .hour = dt.hour,
+          .min = dt.min,
+          .sec = dt.sec,
+      };
 
-        uart_print("%s", MSG_ERROR_REINT);
+      data_logger_store_raw(&data);
+      return true;
     }
 
-    char error_msg[BUFFER_SIZE_MSG_ERROR_FALLO];
-    snprintf(error_msg, sizeof(error_msg), MSG_ERROR_FALLO, datetime_str, sensor_id);
-    uart_print("%s", error_msg);
-    return false;
+    uart_print("%s", MSG_ERROR_REINT);
+  }
+
+  char error_msg[BUFFER_SIZE_MSG_ERROR_FALLO];
+  snprintf(error_msg, sizeof(error_msg), MSG_ERROR_FALLO, datetime_str,
+           sensor_id);
+  uart_print("%s", error_msg);
+  return false;
 }
