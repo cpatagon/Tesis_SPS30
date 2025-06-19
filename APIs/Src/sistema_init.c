@@ -35,6 +35,7 @@
 #include "DHT22.h"
 #include "sensors.h"
 #include "mp_sensors_info.h"
+#include "time_rtc.h"
 
 /* === Macros definitions ====================================================================== */
 

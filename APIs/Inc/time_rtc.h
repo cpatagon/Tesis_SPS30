@@ -49,7 +49,7 @@ extern RTC_Source active_rtc;
 /**
  * @brief Inicializa automáticamente el RTC activo (interno o externo).
  */
-void rtc_auto_init(void);
+bool rtc_auto_init(void);
 
 /**
  * @brief Obtiene la hora actual formateada desde el RTC activo.

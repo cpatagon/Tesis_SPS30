@@ -1,30 +1,17 @@
 /*
  * Nombre del archivo: data_logger.c
- * Descripción: [Breve descripción del archivo]
+ * Descripción: Registro de datos de sensores SPS30 en buffers y microSD
  * Autor: lgomez
  * Creado en: May 10, 2025
- * Derechos de Autor: (C) 2023 [Tu nombre o el de tu organización]
+ * Derechos de Autor: (C) 2023 lgomez
  * Licencia: GNU General Public License v3.0
  *
- * Este programa es software libre: puedes redistribuirlo y/o modificarlo
- * bajo los términos de la Licencia Pública General GNU publicada por
- * la Free Software Foundation, ya sea la versión 3 de la Licencia, o
- * (a tu elección) cualquier versión posterior.
- *
- * Este programa se distribuye con la esperanza de que sea útil,
- * pero SIN NINGUNA GARANTÍA; sin siquiera la garantía implícita
- * de COMERCIABILIDAD o APTITUD PARA UN PROPÓSITO PARTICULAR. Ver la
- * Licencia Pública General GNU para más detalles.
- *
- * Deberías haber recibido una copia de la Licencia Pública General GNU
- * junto con este programa. Si no es así, visita <http://www.gnu.org/licenses/>.
- *
  * SPDX-License-Identifier: GPL-3.0-only
- *
  */
+
 /** @file
- ** @brief
- **/
+ ** @brief Módulo de almacenamiento y resumen de datos del sistema MP2.5
+ */
 
 /* === Headers files inclusions =============================================================== */
 
@@ -91,6 +78,7 @@ extern RTC_HandleTypeDef hrtc;
  * @param buffer Buffer donde almacenar la medición
  * @param medicion Medición a almacenar
  */
+
 static void buffer_circular_agregar(BufferCircular * buffer, const MedicionMP * medicion) {
     uint32_t indice;
 
@@ -109,6 +97,93 @@ static void buffer_circular_agregar(BufferCircular * buffer, const MedicionMP * 
 }
 
 /* === Public function implementation ========================================================== */
+
+void log_avg10_data(const PMDataAveraged * avg);
+void log_avg1h_data(const PMDataAveraged * avg);
+void log_avg24h_data(const PMDataAveraged * avg);
+
+void log_avg10_data(const PMDataAveraged * avg) {
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer), "%.2f,%.2f,%.2f,%.2f\n", avg->mean, avg->max, avg->min,
+             avg->std);
+
+    microSD_appendLineAbsolute("/AVG10/avg10.csv", buffer);
+
+    uart_print("[PROMEDIO 10min] PM2.5 -> media: %.2f, max: %.2f, min: %.2f, std: %.2f\r\n",
+               avg->mean, avg->max, avg->min, avg->std);
+}
+
+void log_avg1h_data(const PMDataAveraged * avg) {
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer), "%.2f,%.2f,%.2f,%.2f\n", avg->mean, avg->max, avg->min,
+             avg->std);
+
+    microSD_appendLineAbsolute("/AVG60/avg60.csv", buffer);
+
+    uart_print("[PROMEDIO 1h] PM2.5 -> media: %.2f, max: %.2f, min: %.2f, std: %.2f\r\n", avg->mean,
+               avg->max, avg->min, avg->std);
+}
+
+void log_avg24h_data(const PMDataAveraged * avg) {
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer), "%.2f,%.2f,%.2f,%.2f\n", avg->mean, avg->max, avg->min,
+             avg->std);
+
+    microSD_appendLineAbsolute("/AVG24/avg24.csv", buffer);
+
+    uart_print("[PROMEDIO 24h] PM2.5 -> media: %.2f, max: %.2f, min: %.2f, std: %.2f\r\n",
+               avg->mean, avg->max, avg->min, avg->std);
+}
+
+void proceso_analisis_periodico(float pm25_actual) {
+    static float buffer_10min[60];
+    static int index_10min = 0;
+
+    static float buffer_1h[24];
+    static int index_1h = 0;
+
+    static float buffer_24h[30];
+    static int index_24h = 0;
+
+    buffer_10min[index_10min++ % 60] = pm25_actual;
+
+    ds3231_time_t now;
+    if (!ds3231_get_datetime(&now)) {
+        uart_print("Error obteniendo hora del RTC\r\n");
+        return;
+    }
+
+    if (now.min % 10 == 0 && now.sec < 10) {
+        PMDataAveraged avg10;
+        avg10.mean = calculateAverage(buffer_10min, 60);
+        avg10.max = findMaxValue(buffer_10min, 60);
+        avg10.min = findMinValue(buffer_10min, 60);
+        avg10.std = calculateStandardDeviation(buffer_10min, 60);
+        log_avg10_data(&avg10);
+
+        buffer_1h[index_1h++ % 24] = avg10.mean;
+
+        if (now.min == 0) {
+            PMDataAveraged avg1h;
+            avg1h.mean = calculateAverage(buffer_1h, 24);
+            avg1h.max = findMaxValue(buffer_1h, 24);
+            avg1h.min = findMinValue(buffer_1h, 24);
+            avg1h.std = calculateStandardDeviation(buffer_1h, 24);
+            log_avg1h_data(&avg1h);
+
+            buffer_24h[index_24h++ % 30] = avg1h.mean;
+
+            if (now.hour == 0) {
+                PMDataAveraged avg24;
+                avg24.mean = calculateAverage(buffer_24h, 30);
+                avg24.max = findMaxValue(buffer_24h, 30);
+                avg24.min = findMinValue(buffer_24h, 30);
+                avg24.std = calculateStandardDeviation(buffer_24h, 30);
+                log_avg24h_data(&avg24);
+            }
+        }
+    }
+}
 
 bool data_logger_init(void) {
     // Inicializar buffers
@@ -376,66 +451,6 @@ bool log_data_to_sd(const ParticulateData * data) {
     return true;
 }
 
-void print_fatfs_error(FRESULT res) {
-    char msg[64];
-    snprintf(msg, sizeof(msg), "f_mount() error code: %d\r\n", res);
-    uart_print(msg);
-
-    switch (res) {
-    case FR_OK:
-        uart_print("FR_OK: Operacion exitosa\r\n");
-        break;
-    case FR_DISK_ERR:
-        uart_print("FR_DISK_ERR: Error fisico en el disco\r\n");
-        break;
-    case FR_INT_ERR:
-        uart_print("FR_INT_ERR: Error interno de FatFs\r\n");
-        break;
-    case FR_NOT_READY:
-        uart_print("FR_NOT_READY: Disco no esta listo\r\n");
-        break;
-    case FR_NO_FILE:
-        uart_print("FR_NO_FILE: Archivo no encontrado\r\n");
-        break;
-    case FR_NO_PATH:
-        uart_print("FR_NO_PATH: Ruta no encontrada\r\n");
-        break;
-    case FR_INVALID_NAME:
-        uart_print("FR_INVALID_NAME: Nombre inválido\r\n");
-        break;
-    case FR_DENIED:
-        uart_print("FR_DENIED: Acceso denegado\r\n");
-        break;
-    case FR_EXIST:
-        uart_print("FR_EXIST: Archivo ya existe\r\n");
-        break;
-    case FR_INVALID_OBJECT:
-        uart_print("FR_INVALID_OBJECT: Objeto invalido\r\n");
-        break;
-    case FR_WRITE_PROTECTED:
-        uart_print("FR_WRITE_PROTECTED: Tarjeta protegida contra escritura\r\n");
-        break;
-    case FR_INVALID_DRIVE:
-        uart_print("FR_INVALID_DRIVE: Unidad invalida\r\n");
-        break;
-    case FR_NOT_ENABLED:
-        uart_print("FR_NOT_ENABLED: FatFs no esta habilitado\r\n");
-        break;
-    case FR_NO_FILESYSTEM:
-        uart_print("FR_NO_FILESYSTEM: No hay sistema de archivos FAT valido\r\n");
-        break;
-    case FR_TIMEOUT:
-        uart_print("FR_TIMEOUT: Timeout de acceso\r\n");
-        break;
-    case FR_LOCKED:
-        uart_print("FR_LOCKED: El archivo esta bloqueado\r\n");
-        break;
-    default:
-        uart_print("Codigo de error desconocido\r\n");
-        break;
-    }
-}
-
 bool data_logger_write_csv_line(const ParticulateData * data) {
     char line[CSV_LINE_BUFFER_SIZE];
 
@@ -552,10 +567,18 @@ void build_iso8601_timestamp(char * buffer, size_t len, const ParticulateData * 
              data->hour, data->min, data->sec);
 }
 
+/* === Función principal: cálculo periódico basado en RTC ===================================== */
+
 #ifdef UNIT_TEST
-BufferCircular *get_buffer_high_freq(void) { return &buffer_alta_frecuencia; }
-BufferCircular *get_buffer_hourly(void) { return &buffer_hora; }
-BufferCircular *get_buffer_daily(void) { return &buffer_dia; }
+BufferCircular * get_buffer_high_freq(void) {
+    return &buffer_alta_frecuencia;
+}
+BufferCircular * get_buffer_hourly(void) {
+    return &buffer_hora;
+}
+BufferCircular * get_buffer_daily(void) {
+    return &buffer_dia;
+}
 #endif
 
 /* === End of documentation ==================================================================== */

@@ -1,1 +1,2 @@
-microSD_utils.c:58:6:microSD_appendLineAbsolute	8
+microSD_utils.c:60:6:microSD_appendLineAbsolute	8
+microSD_utils.c:96:6:print_fatfs_error	17

@@ -64,11 +64,11 @@ static bool rtc_external_available(void) {
  * @brief Inicializa automáticamente el RTC (externo o interno), y si está habilitado,
  *        configura la hora con el timestamp de compilación en caso de ser necesario.
  */
-void rtc_auto_init(void) {
+
+bool rtc_auto_init(void) {
     if (rtc_external_available()) {
         DS3231_Init(&RTC_I2C_HANDLER);
         active_rtc = RTC_SOURCE_EXTERNAL;
-
 #if RTC_USE_BUILD_TIME_IF_NO_SOURCE
         DS3231_DateTime now;
         DS3231_GetDateTime(&now);
@@ -77,13 +77,14 @@ void rtc_auto_init(void) {
             uart_print(MSM_RTC_HORA_NO_VALIDA);
             DS3231_DateTime build_time = rtc_get_compile_time();
             DS3231_SetDateTime(&build_time);
+            return false; // hora inválida
         }
 #endif
-
+        return true;
     } else {
-        MX_RTC_Init(); // RTC interno
+        MX_RTC_Init();
         active_rtc = RTC_SOURCE_INTERNAL;
-        // Se puede extender con lógica similar para fallback en RTC interno
+        return true; // aunque sea interno, se considera OK
     }
 }
 

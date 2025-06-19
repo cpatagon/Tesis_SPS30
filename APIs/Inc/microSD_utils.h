@@ -32,6 +32,7 @@
 /* === Headers files inclusions ================================================================ */
 
 #include <stdbool.h>
+#include "ff.h"
 
 /* === Cabecera C++ ============================================================================ */
 #ifdef __cplusplus
@@ -54,6 +55,8 @@ extern "C" {
  * @return true si la operación fue exitosa, false en caso de error.
  */
 bool microSD_appendLineAbsolute(const char * filepath, const char * line);
+
+void print_fatfs_error(FRESULT res);
 
 /* === End of documentation ==================================================================== */
 

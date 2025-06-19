@@ -30,6 +30,7 @@
 #include "DHT22_Hardware.h"
 // #include "DWT_Delay.h" // Archivo separado para la gestión de retrasos DWT
 #include "stm32f4xx_hal.h" // Incluir HAL para tipos de datos y funciones
+#include "DWT_Delay.h"
 
 /* === Macros definitions ====================================================================== */
 
