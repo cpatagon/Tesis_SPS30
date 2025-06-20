@@ -83,6 +83,8 @@ static float hourly_avgs[AVG10_PER_HOUR] = {0};
 static int hourly_index = 0;
 static float daily_avgs[AVG1H_PER_DAY] = {0};
 static int daily_index = 0;
+static ds3231_time_t hourly_start_time = {0};
+static ds3231_time_t daily_start_time = {0};
 /* === Private function declarations =========================================================== */
 
 /* === Public variable definitions ============================================================= */
@@ -115,21 +117,36 @@ static void buffer_circular_agregar(BufferCircular * buffer, const MedicionMP * 
     memcpy(&buffer->datos[indice], medicion, sizeof(MedicionMP));
 }
 
+static int seconds_since_midnight(const ds3231_time_t * t) {
+    return t->hour * 3600 + t->min * 60 + t->sec;
+}
+
+static int time_diff_seconds(const ds3231_time_t * start, const ds3231_time_t * end) {
+    int diff = seconds_since_midnight(end) - seconds_since_midnight(start);
+    if (diff < 0)
+        diff += 24 * 3600;
+    return diff;
+}
+
 static bool is_10min_boundary(const ds3231_time_t * dt) {
-    return (dt->min % 10 == 0) && dt->sec == 0;
+    return time_diff_seconds(&current_window.start_time, dt) >= 10 * 60;
 }
 
 static bool is_1hour_boundary(const ds3231_time_t * dt) {
-    return (dt->min == 0) && (dt->sec == 0);
+    return time_diff_seconds(&hourly_start_time, dt) >= 60 * 60;
 }
 
 static bool is_24hour_boundary(const ds3231_time_t * dt) {
-    return (dt->hour == 0) && (dt->min == 0) && (dt->sec == 0);
+    return time_diff_seconds(&daily_start_time, dt) >= 24 * 3600;
 }
 
 static void accumulate_sample_in_current_window(float sample, const ds3231_time_t * dt) {
     if (current_window.count == 0) {
         current_window.start_time = *dt;
+        if (hourly_index == 0)
+            hourly_start_time = *dt;
+        if (daily_index == 0)
+            daily_start_time = *dt;
     }
 
     if (current_window.count < MAX_SAMPLES_PER_10MIN) {
@@ -242,6 +259,8 @@ static void data_logger_check_time_averages(const ds3231_time_t * dt) {
         daily_avgs[daily_index % AVG1H_PER_DAY] = avg1h.mean;
         daily_index++;
 
+        hourly_start_time = *dt;
+
         TimeSyncedAverage ta = { .timestamp = *dt, .pm2_5_avg = avg1h.mean, .sample_count = count,
                                  .pm2_5_min = avg1h.min, .pm2_5_max = avg1h.max, .pm2_5_std = avg1h.std };
         save_temporal_average_to_csv(&ta, "/AVG60/avg60.csv");
@@ -256,6 +275,8 @@ static void data_logger_check_time_averages(const ds3231_time_t * dt) {
         avg24.std = calculateStandardDeviation(daily_avgs, count);
 
         log_avg24h_data(&avg24);
+
+        daily_start_time = *dt;
 
         TimeSyncedAverage ta = { .timestamp = *dt, .pm2_5_avg = avg24.mean, .sample_count = count,
                                  .pm2_5_min = avg24.min, .pm2_5_max = avg24.max, .pm2_5_std = avg24.std };
