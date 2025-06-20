@@ -50,10 +50,15 @@ extern "C" {
 #define BUFFER_DAILY_SIZE     30  /**< 30 muestras = 1 cada hora durante 30 horas (aprox. 1 día) */
 #define CSV_LINE_BUFFER_SIZE  128 /**< Tamaño máximo para formatear una línea CSV */
 
-// Conteo de ciclos para promedios
+// Conteo de ciclos para promedios (obsoletos, mantenidos por compatibilidad)
 #define CYCLES_AVG_10MIN 60   /**< 60 ciclos equivalen a 10 minutos */
 #define CYCLES_AVG_1H    360  /**< 360 ciclos equivalen a 1 hora */
 #define CYCLES_AVG_24H   8640 /**< 8640 ciclos equivalen a 24 horas */
+
+// Nuevas constantes basadas en tiempo real
+#define MAX_SAMPLES_PER_10MIN 60 /**< Muestras de 10 s en 10 minutos */
+#define AVG10_PER_HOUR        6  /**< Cantidad de ventanas de 10 min en 1 hora */
+#define AVG1H_PER_DAY        24  /**< Cantidad de promedios horarios en 24 h */
 
 /* === Public data type declarations
  * =========================================================== */
@@ -94,6 +99,40 @@ typedef struct {
     float min;  /**< Mínimo */
     float std;  /**< Desviación estándar */
 } PMDataAveraged;
+
+/**
+ * @struct TimeWindow
+ * @brief Ventana temporal de muestras sincronizadas con RTC
+ */
+typedef struct {
+    ds3231_time_t start_time;                   /**< Inicio de la ventana */
+    float samples[MAX_SAMPLES_PER_10MIN];       /**< Datos de PM2.5 */
+    uint16_t count;                             /**< Cantidad de muestras */
+} TimeWindow;
+
+/**
+ * @struct TimeSyncedAverage
+ * @brief Estadísticos calculados para una ventana temporal
+ */
+typedef struct {
+    ds3231_time_t timestamp; /**< Marca temporal asociada al promedio */
+    float pm2_5_avg;         /**< Valor medio de PM2.5 */
+    uint16_t sample_count;   /**< Número de muestras consideradas */
+    float pm2_5_min;         /**< Valor mínimo */
+    float pm2_5_max;         /**< Valor máximo */
+    float pm2_5_std;         /**< Desviación estándar */
+} TimeSyncedAverage;
+
+/**
+ * @struct TemporalBuffer
+ * @brief Buffer circular de promedios temporales
+ */
+typedef struct {
+    TimeSyncedAverage * data; /**< Arreglo de promedios */
+    uint16_t capacity;        /**< Tamaño máximo */
+    uint16_t start;           /**< Índice del elemento más antiguo */
+    uint16_t count;           /**< Cantidad almacenada */
+} TemporalBuffer;
 
 /* === Public function declarations
  * ============================================================ */
@@ -196,6 +235,11 @@ bool data_logger_store_raw(const ParticulateData * data);
 BufferCircular * get_buffer_high_freq(void);
 BufferCircular * get_buffer_hourly(void);
 BufferCircular * get_buffer_daily(void);
+TimeWindow * get_time_window(void);
+float * get_avg1h_buffer(void);
+float * get_avg24h_buffer(void);
+int get_hourly_index(void);
+int get_daily_index(void);
 #endif
 
 #ifdef __cplusplus
