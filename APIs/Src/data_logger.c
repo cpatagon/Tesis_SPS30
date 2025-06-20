@@ -83,6 +83,8 @@ static float hourly_avgs[AVG10_PER_HOUR] = {0};
 static int hourly_index = 0;
 static float daily_avgs[AVG1H_PER_DAY] = {0};
 static int daily_index = 0;
+static ds3231_time_t hourly_start_time = {0};
+static ds3231_time_t daily_start_time = {0};
 /* === Private function declarations =========================================================== */
 
 /* === Public variable definitions ============================================================= */
@@ -115,16 +117,27 @@ static void buffer_circular_agregar(BufferCircular * buffer, const MedicionMP * 
     memcpy(&buffer->datos[indice], medicion, sizeof(MedicionMP));
 }
 
+static int seconds_since_midnight(const ds3231_time_t * t) {
+    return t->hour * 3600 + t->min * 60 + t->sec;
+}
+
+static int time_diff_seconds(const ds3231_time_t * start, const ds3231_time_t * end) {
+    int diff = seconds_since_midnight(end) - seconds_since_midnight(start);
+    if (diff < 0)
+        diff += 24 * 3600;
+    return diff;
+}
+
 static bool is_10min_boundary(const ds3231_time_t * dt) {
-    return (dt->min % 10 == 0) && dt->sec == 0;
+    return time_diff_seconds(&current_window.start_time, dt) >= 10 * 60;
 }
 
 static bool is_1hour_boundary(const ds3231_time_t * dt) {
-    return (dt->min == 0) && (dt->sec == 0);
+    return time_diff_seconds(&hourly_start_time, dt) >= 60 * 60;
 }
 
 static bool is_24hour_boundary(const ds3231_time_t * dt) {
-    return (dt->hour == 0) && (dt->min == 0) && (dt->sec == 0);
+    return time_diff_seconds(&daily_start_time, dt) >= 24 * 3600;
 }
 
 static unsigned int time_diff_seconds(const ds3231_time_t * start,
@@ -140,6 +153,10 @@ static unsigned int time_diff_seconds(const ds3231_time_t * start,
 static void accumulate_sample_in_current_window(float sample, const ds3231_time_t * dt) {
     if (current_window.count == 0) {
         current_window.start_time = *dt;
+        if (hourly_index == 0)
+            hourly_start_time = *dt;
+        if (daily_index == 0)
+            daily_start_time = *dt;
     }
 
     if (current_window.count < MAX_SAMPLES_PER_10MIN) {
@@ -163,7 +180,17 @@ static TimeSyncedAverage finalize_temporal_window(void) {
     return avg;
 }
 
+static void ensure_avg_directories(void) {
+    const char *dirs[] = {"/AVG10", "/AVG60", "/AVG24"};
+    for (unsigned int i = 0; i < sizeof(dirs) / sizeof(dirs[0]); i++) {
+        if (f_stat(dirs[i], NULL) != FR_OK) {
+            f_mkdir(dirs[i]);
+        }
+    }
+}
+
 static void save_temporal_average_to_csv(const TimeSyncedAverage * avg, const char * path) {
+    ensure_avg_directories();
     const char * type = "UNK";
     if (strstr(path, "AVG10"))
         type = "avg10";
@@ -246,6 +273,7 @@ static void data_logger_check_time_averages(const ds3231_time_t * dt) {
         log_avg10_data(&to_print);
         save_temporal_average_to_csv(&avg10, "/AVG10/avg10.csv");
 
+
         if (hourly_index % AVG10_PER_HOUR == 0) {
             int count = AVG10_PER_HOUR;
             PMDataAveraged avg1h;
@@ -301,6 +329,7 @@ bool data_logger_init(void) {
     }
 
     uart_print("[OK] microSD montada correctamente\r\n");
+    ensure_avg_directories();
     sd_mounted = true;
     return true;
 }
