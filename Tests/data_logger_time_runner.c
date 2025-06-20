@@ -18,7 +18,7 @@
 
 int main(void){
     stub_set_time(12,0,0);
-    for(int i=0;i<60;i++){
+    for(int i=0;i<61;i++){
         stub_advance_seconds(10);
         proceso_analisis_periodico(10.0f); // constant value
     }
