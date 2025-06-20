@@ -140,6 +140,16 @@ static bool is_24hour_boundary(const ds3231_time_t * dt) {
     return time_diff_seconds(&daily_start_time, dt) >= 24 * 3600;
 }
 
+static unsigned int time_diff_seconds(const ds3231_time_t * start,
+                                      const ds3231_time_t * end) {
+    int start_s = start->hour * 3600 + start->min * 60 + start->sec;
+    int end_s = end->hour * 3600 + end->min * 60 + end->sec;
+    int diff = end_s - start_s;
+    if (diff < 0)
+        diff += 24 * 3600;
+    return (unsigned int)diff;
+}
+
 static void accumulate_sample_in_current_window(float sample, const ds3231_time_t * dt) {
     if (current_window.count == 0) {
         current_window.start_time = *dt;
@@ -246,7 +256,15 @@ void data_logger_increment_cycle(void) {
 }
 
 static void data_logger_check_time_averages(const ds3231_time_t * dt) {
-    if (is_10min_boundary(dt) && current_window.count > 0) {
+    bool finalize10 = false;
+    if (current_window.count > 0) {
+        unsigned int diff = time_diff_seconds(&current_window.start_time, dt);
+        if (diff >= 600 || is_10min_boundary(dt)) {
+            finalize10 = true;
+        }
+    }
+
+    if (finalize10) {
         TimeSyncedAverage avg10 = finalize_temporal_window();
         hourly_avgs[hourly_index % AVG10_PER_HOUR] = avg10.pm2_5_avg;
         hourly_index++;
@@ -254,43 +272,40 @@ static void data_logger_check_time_averages(const ds3231_time_t * dt) {
         PMDataAveraged to_print = {avg10.pm2_5_avg, avg10.pm2_5_max, avg10.pm2_5_min, avg10.pm2_5_std};
         log_avg10_data(&to_print);
         save_temporal_average_to_csv(&avg10, "/AVG10/avg10.csv");
-    }
 
-    if (is_1hour_boundary(dt) && hourly_index > 0) {
-        int count = (hourly_index < AVG10_PER_HOUR) ? hourly_index : AVG10_PER_HOUR;
-        PMDataAveraged avg1h;
-        avg1h.mean = calculateAverage(hourly_avgs, count);
-        avg1h.max = findMaxValue(hourly_avgs, count);
-        avg1h.min = findMinValue(hourly_avgs, count);
-        avg1h.std = calculateStandardDeviation(hourly_avgs, count);
 
-        log_avg1h_data(&avg1h);
+        if (hourly_index % AVG10_PER_HOUR == 0) {
+            int count = AVG10_PER_HOUR;
+            PMDataAveraged avg1h;
+            avg1h.mean = calculateAverage(hourly_avgs, count);
+            avg1h.max = findMaxValue(hourly_avgs, count);
+            avg1h.min = findMinValue(hourly_avgs, count);
+            avg1h.std = calculateStandardDeviation(hourly_avgs, count);
 
-        daily_avgs[daily_index % AVG1H_PER_DAY] = avg1h.mean;
-        daily_index++;
+            log_avg1h_data(&avg1h);
 
-        hourly_start_time = *dt;
+            daily_avgs[daily_index % AVG1H_PER_DAY] = avg1h.mean;
+            daily_index++;
 
-        TimeSyncedAverage ta = { .timestamp = *dt, .pm2_5_avg = avg1h.mean, .sample_count = count,
-                                 .pm2_5_min = avg1h.min, .pm2_5_max = avg1h.max, .pm2_5_std = avg1h.std };
-        save_temporal_average_to_csv(&ta, "/AVG60/avg60.csv");
-    }
+            TimeSyncedAverage ta = { .timestamp = *dt, .pm2_5_avg = avg1h.mean, .sample_count = count,
+                                     .pm2_5_min = avg1h.min, .pm2_5_max = avg1h.max, .pm2_5_std = avg1h.std };
+            save_temporal_average_to_csv(&ta, "/AVG60/avg60.csv");
 
-    if (is_24hour_boundary(dt) && daily_index > 0) {
-        int count = (daily_index < AVG1H_PER_DAY) ? daily_index : AVG1H_PER_DAY;
-        PMDataAveraged avg24;
-        avg24.mean = calculateAverage(daily_avgs, count);
-        avg24.max = findMaxValue(daily_avgs, count);
-        avg24.min = findMinValue(daily_avgs, count);
-        avg24.std = calculateStandardDeviation(daily_avgs, count);
+            if (daily_index % AVG1H_PER_DAY == 0) {
+                int dcount = AVG1H_PER_DAY;
+                PMDataAveraged avg24;
+                avg24.mean = calculateAverage(daily_avgs, dcount);
+                avg24.max = findMaxValue(daily_avgs, dcount);
+                avg24.min = findMinValue(daily_avgs, dcount);
+                avg24.std = calculateStandardDeviation(daily_avgs, dcount);
 
-        log_avg24h_data(&avg24);
+                log_avg24h_data(&avg24);
 
-        daily_start_time = *dt;
-
-        TimeSyncedAverage ta = { .timestamp = *dt, .pm2_5_avg = avg24.mean, .sample_count = count,
-                                 .pm2_5_min = avg24.min, .pm2_5_max = avg24.max, .pm2_5_std = avg24.std };
-        save_temporal_average_to_csv(&ta, "/AVG24/avg24.csv");
+                TimeSyncedAverage da = { .timestamp = *dt, .pm2_5_avg = avg24.mean, .sample_count = dcount,
+                                         .pm2_5_min = avg24.min, .pm2_5_max = avg24.max, .pm2_5_std = avg24.std };
+                save_temporal_average_to_csv(&da, "/AVG24/avg24.csv");
+            }
+        }
     }
 }
 

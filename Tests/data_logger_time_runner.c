@@ -17,7 +17,7 @@
 #include "../APIs/Src/data_logger.c"
 
 int main(void){
-    stub_set_time(12,0,0);
+    stub_set_time(12,0,5); // start slightly offset from exact boundary
     for(int i=0;i<61;i++){
         stub_advance_seconds(10);
         proceso_analisis_periodico(10.0f); // constant value
@@ -25,7 +25,7 @@ int main(void){
     float *hbuf = get_avg1h_buffer();
     if(get_hourly_index()>0){
         for(int i=1;i<6;i++){
-            for(int j=0;j<60;j++){ stub_advance_seconds(10); proceso_analisis_periodico(10.0f); }
+            for(int j=0;j<61;j++){ stub_advance_seconds(10); proceso_analisis_periodico(10.0f); }
         }
         if(get_daily_index()>0){ printf("PASS\n"); return 0; }
     }
