@@ -21,7 +21,9 @@
  * ================================================================ */
 
 #ifdef UNIT_TESTING
+#undef UNIT_TESTING
 #include "ff_stub.h"
+#define UNIT_TESTING
 #else
 #include "ff.h"
 #endif
@@ -31,7 +33,7 @@
 #include <stdint.h>
 
 #include "ParticulateDataAnalyzer.h"
-#include "rtc_ds3231_for_stm32_hal.h"
+#include <rtc_ds3231_for_stm32_hal.h>
 /* === Cabecera C++
  * ============================================================================
  */
@@ -47,6 +49,11 @@ extern "C" {
 #define BUFFER_HOURLY_SIZE    24  /**< 24 muestras = 1 por cada 10 minutos en una hora */
 #define BUFFER_DAILY_SIZE     30  /**< 30 muestras = 1 cada hora durante 30 horas (aprox. 1 día) */
 #define CSV_LINE_BUFFER_SIZE  128 /**< Tamaño máximo para formatear una línea CSV */
+
+// Conteo de ciclos para promedios
+#define CYCLES_AVG_10MIN 60   /**< 60 ciclos equivalen a 10 minutos */
+#define CYCLES_AVG_1H    360  /**< 360 ciclos equivalen a 1 hora */
+#define CYCLES_AVG_24H   8640 /**< 8640 ciclos equivalen a 24 horas */
 
 /* === Public data type declarations
  * =========================================================== */
@@ -127,6 +134,12 @@ float data_logger_get_average_pm25(uint8_t sensor_id, uint32_t num_mediciones);
 
 /** @brief Proceso periódico de análisis y almacenamiento de promedios. */
 void proceso_analisis_periodico(float pm25_actual);
+
+/** @brief Incrementa el contador de ciclos completados. */
+void data_logger_increment_cycle(void);
+
+/** @brief Verifica si corresponde calcular promedios según el contador. */
+void data_logger_check_cycle_averages(void);
 
 /** @brief Imprime resumen general vía UART. */
 void data_logger_print_summary(void);

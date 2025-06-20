@@ -30,7 +30,13 @@
 #include "time_rtc.h"
 
 #include "uart.h"
+#ifdef UNIT_TESTING
+#undef UNIT_TESTING
+#include "ff_stub.h"
+#define UNIT_TESTING
+#else
 #include "ff.h"
+#endif
 
 #include "rtc_ds3231_for_stm32_hal.h"
 
@@ -38,6 +44,13 @@
 
 #include "mp_sensors_info.h"
 
+#ifdef UNIT_TESTING
+float calculateAverage(float data[], int n_data) { return 0.0f; }
+float findMaxValue(float data[], int n_data) { return 0.0f; }
+float findMinValue(float data[], int n_data) { return 0.0f; }
+float calculateStandardDeviation(float data[], int n) { return 0.0f; }
+void print_fatfs_error(FRESULT res) {}
+#endif
 /* === Macros definitions ====================================================================== */
 
 #define CSV_LINE_BUFFER_SIZE 128
@@ -64,6 +77,14 @@ static BufferCircular buffer_dia = {
     .datos = buffer_diario, .capacidad = BUFFER_DAILY_SIZE, .inicio = 0, .cantidad = 0};
 
 extern RTC_HandleTypeDef hrtc;
+
+static uint32_t cycle_counter = 0;
+static float buffer_10min[CYCLES_AVG_10MIN];
+static int index_10min = 0;
+static float buffer_1h[CYCLES_AVG_1H / CYCLES_AVG_10MIN];
+static int index_1h = 0;
+static float buffer_24h[CYCLES_AVG_24H / CYCLES_AVG_1H];
+static int index_24h = 0;
 /* === Private function declarations =========================================================== */
 
 /* === Public variable definitions ============================================================= */
@@ -102,6 +123,9 @@ void log_avg10_data(const PMDataAveraged * avg);
 void log_avg1h_data(const PMDataAveraged * avg);
 void log_avg24h_data(const PMDataAveraged * avg);
 
+void data_logger_increment_cycle(void);
+void data_logger_check_cycle_averages(void);
+
 void log_avg10_data(const PMDataAveraged * avg) {
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "%.2f,%.2f,%.2f,%.2f\n", avg->mean, avg->max, avg->min,
@@ -135,54 +159,50 @@ void log_avg24h_data(const PMDataAveraged * avg) {
                avg->mean, avg->max, avg->min, avg->std);
 }
 
-void proceso_analisis_periodico(float pm25_actual) {
-    static float buffer_10min[60];
-    static int index_10min = 0;
+void data_logger_increment_cycle(void) {
+    cycle_counter++;
+}
 
-    static float buffer_1h[24];
-    static int index_1h = 0;
-
-    static float buffer_24h[30];
-    static int index_24h = 0;
-
-    buffer_10min[index_10min++ % 60] = pm25_actual;
-
-    ds3231_time_t now;
-    if (!ds3231_get_datetime(&now)) {
-        uart_print("Error obteniendo hora del RTC\r\n");
-        return;
-    }
-
-    if (now.min % 10 == 0 && now.sec < 10) {
+void data_logger_check_cycle_averages(void) {
+    if (cycle_counter % CYCLES_AVG_10MIN == 0) {
         PMDataAveraged avg10;
-        avg10.mean = calculateAverage(buffer_10min, 60);
-        avg10.max = findMaxValue(buffer_10min, 60);
-        avg10.min = findMinValue(buffer_10min, 60);
-        avg10.std = calculateStandardDeviation(buffer_10min, 60);
+        avg10.mean = calculateAverage(buffer_10min, CYCLES_AVG_10MIN);
+        avg10.max = findMaxValue(buffer_10min, CYCLES_AVG_10MIN);
+        avg10.min = findMinValue(buffer_10min, CYCLES_AVG_10MIN);
+        avg10.std = calculateStandardDeviation(buffer_10min, CYCLES_AVG_10MIN);
         log_avg10_data(&avg10);
 
-        buffer_1h[index_1h++ % 24] = avg10.mean;
-
-        if (now.min == 0) {
-            PMDataAveraged avg1h;
-            avg1h.mean = calculateAverage(buffer_1h, 24);
-            avg1h.max = findMaxValue(buffer_1h, 24);
-            avg1h.min = findMinValue(buffer_1h, 24);
-            avg1h.std = calculateStandardDeviation(buffer_1h, 24);
-            log_avg1h_data(&avg1h);
-
-            buffer_24h[index_24h++ % 30] = avg1h.mean;
-
-            if (now.hour == 0) {
-                PMDataAveraged avg24;
-                avg24.mean = calculateAverage(buffer_24h, 30);
-                avg24.max = findMaxValue(buffer_24h, 30);
-                avg24.min = findMinValue(buffer_24h, 30);
-                avg24.std = calculateStandardDeviation(buffer_24h, 30);
-                log_avg24h_data(&avg24);
-            }
-        }
+        buffer_1h[index_1h++ % (CYCLES_AVG_1H / CYCLES_AVG_10MIN)] = avg10.mean;
     }
+
+    if (cycle_counter % CYCLES_AVG_1H == 0) {
+        PMDataAveraged avg1h;
+        avg1h.mean =
+            calculateAverage(buffer_1h, CYCLES_AVG_1H / CYCLES_AVG_10MIN);
+        avg1h.max = findMaxValue(buffer_1h, CYCLES_AVG_1H / CYCLES_AVG_10MIN);
+        avg1h.min = findMinValue(buffer_1h, CYCLES_AVG_1H / CYCLES_AVG_10MIN);
+        avg1h.std =
+            calculateStandardDeviation(buffer_1h, CYCLES_AVG_1H / CYCLES_AVG_10MIN);
+        log_avg1h_data(&avg1h);
+
+        buffer_24h[index_24h++ % (CYCLES_AVG_24H / CYCLES_AVG_1H)] = avg1h.mean;
+    }
+
+    if (cycle_counter % CYCLES_AVG_24H == 0) {
+        PMDataAveraged avg24;
+        avg24.mean =
+            calculateAverage(buffer_24h, CYCLES_AVG_24H / CYCLES_AVG_1H);
+        avg24.max = findMaxValue(buffer_24h, CYCLES_AVG_24H / CYCLES_AVG_1H);
+        avg24.min = findMinValue(buffer_24h, CYCLES_AVG_24H / CYCLES_AVG_1H);
+        avg24.std =
+            calculateStandardDeviation(buffer_24h, CYCLES_AVG_24H / CYCLES_AVG_1H);
+        log_avg24h_data(&avg24);
+    }
+}
+
+void proceso_analisis_periodico(float pm25_actual) {
+    buffer_10min[index_10min++ % CYCLES_AVG_10MIN] = pm25_actual;
+    data_logger_check_cycle_averages();
 }
 
 bool data_logger_init(void) {
@@ -569,7 +589,7 @@ void build_iso8601_timestamp(char * buffer, size_t len, const ParticulateData * 
 
 /* === Función principal: cálculo periódico basado en RTC ===================================== */
 
-#ifdef UNIT_TEST
+#if defined(UNIT_TEST) || defined(UNIT_TESTING)
 BufferCircular * get_buffer_high_freq(void) {
     return &buffer_alta_frecuencia;
 }

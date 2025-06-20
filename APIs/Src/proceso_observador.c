@@ -127,8 +127,10 @@ void registrar_lectura_pm25(uint8_t sensor_id, float pm25) {
 
         if (sensores_recibidos == 3) {
             // Ciclo completo
-            float promedio_ciclo = (pm25_sensores[0] + pm25_sensores[1] + pm25_sensores[2]) / 3.0f;
+            float promedio_ciclo =
+                (pm25_sensores[0] + pm25_sensores[1] + pm25_sensores[2]) / 3.0f;
 
+            data_logger_increment_cycle();
             proceso_analisis_periodico(promedio_ciclo); // ✅ alimenta buffers
 
             sensores_recibidos = 0; // reiniciar para próximo ciclo
