@@ -5,4 +5,6 @@
 typedef struct {unsigned char hour; unsigned char min; unsigned char sec; unsigned char day; unsigned char month; unsigned short year;} ds3231_time_t;
 void time_rtc_GetFormattedDateTime(char *buffer, size_t len);
 bool ds3231_get_datetime(ds3231_time_t* dt);
+void stub_set_time(unsigned char hour, unsigned char min, unsigned char sec);
+void stub_advance_seconds(unsigned int s);
 #endif

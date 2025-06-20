@@ -78,13 +78,11 @@ static BufferCircular buffer_dia = {
 
 extern RTC_HandleTypeDef hrtc;
 
-static uint32_t cycle_counter = 0;
-static float buffer_10min[CYCLES_AVG_10MIN];
-static int index_10min = 0;
-static float buffer_1h[CYCLES_AVG_1H / CYCLES_AVG_10MIN];
-static int index_1h = 0;
-static float buffer_24h[CYCLES_AVG_24H / CYCLES_AVG_1H];
-static int index_24h = 0;
+static TimeWindow current_window = {0};
+static float hourly_avgs[AVG10_PER_HOUR] = {0};
+static int hourly_index = 0;
+static float daily_avgs[AVG1H_PER_DAY] = {0};
+static int daily_index = 0;
 /* === Private function declarations =========================================================== */
 
 /* === Public variable definitions ============================================================= */
@@ -115,6 +113,63 @@ static void buffer_circular_agregar(BufferCircular * buffer, const MedicionMP * 
 
     // Copiar la medición al buffer
     memcpy(&buffer->datos[indice], medicion, sizeof(MedicionMP));
+}
+
+static bool is_10min_boundary(const ds3231_time_t * dt) {
+    return (dt->min % 10 == 0) && dt->sec == 0;
+}
+
+static bool is_1hour_boundary(const ds3231_time_t * dt) {
+    return (dt->min == 0) && (dt->sec == 0);
+}
+
+static bool is_24hour_boundary(const ds3231_time_t * dt) {
+    return (dt->hour == 0) && (dt->min == 0) && (dt->sec == 0);
+}
+
+static void accumulate_sample_in_current_window(float sample, const ds3231_time_t * dt) {
+    if (current_window.count == 0) {
+        current_window.start_time = *dt;
+    }
+
+    if (current_window.count < MAX_SAMPLES_PER_10MIN) {
+        current_window.samples[current_window.count++] = sample;
+    }
+}
+
+static TimeSyncedAverage finalize_temporal_window(void) {
+    TimeSyncedAverage avg = {0};
+
+    avg.timestamp = current_window.start_time;
+    avg.sample_count = current_window.count;
+    if (current_window.count > 0) {
+        avg.pm2_5_avg = calculateAverage(current_window.samples, current_window.count);
+        avg.pm2_5_max = findMaxValue(current_window.samples, current_window.count);
+        avg.pm2_5_min = findMinValue(current_window.samples, current_window.count);
+        avg.pm2_5_std = calculateStandardDeviation(current_window.samples, current_window.count);
+    }
+
+    current_window.count = 0;
+    return avg;
+}
+
+static void save_temporal_average_to_csv(const TimeSyncedAverage * avg, const char * path) {
+    const char * type = "UNK";
+    if (strstr(path, "AVG10"))
+        type = "avg10";
+    else if (strstr(path, "AVG60"))
+        type = "avg60";
+    else if (strstr(path, "AVG24"))
+        type = "avg24";
+
+    char line[128];
+    snprintf(line, sizeof(line), "%04d-%02d-%02d %02d:%02d:%02d,%s,%.2f,%u,%.2f,%.2f,%.2f\n",
+             avg->timestamp.year, avg->timestamp.month, avg->timestamp.day,
+             avg->timestamp.hour, avg->timestamp.min, avg->timestamp.sec,
+             type, avg->pm2_5_avg, avg->sample_count, avg->pm2_5_min,
+             avg->pm2_5_max, avg->pm2_5_std);
+
+    microSD_appendLineAbsolute(path, line);
 }
 
 /* === Public function implementation ========================================================== */
@@ -160,49 +215,62 @@ void log_avg24h_data(const PMDataAveraged * avg) {
 }
 
 void data_logger_increment_cycle(void) {
-    cycle_counter++;
+    // Ya no se utiliza el contador de ciclos
 }
 
-void data_logger_check_cycle_averages(void) {
-    if (cycle_counter % CYCLES_AVG_10MIN == 0) {
-        PMDataAveraged avg10;
-        avg10.mean = calculateAverage(buffer_10min, CYCLES_AVG_10MIN);
-        avg10.max = findMaxValue(buffer_10min, CYCLES_AVG_10MIN);
-        avg10.min = findMinValue(buffer_10min, CYCLES_AVG_10MIN);
-        avg10.std = calculateStandardDeviation(buffer_10min, CYCLES_AVG_10MIN);
-        log_avg10_data(&avg10);
+static void data_logger_check_time_averages(const ds3231_time_t * dt) {
+    if (is_10min_boundary(dt) && current_window.count > 0) {
+        TimeSyncedAverage avg10 = finalize_temporal_window();
+        hourly_avgs[hourly_index % AVG10_PER_HOUR] = avg10.pm2_5_avg;
+        hourly_index++;
 
-        buffer_1h[index_1h++ % (CYCLES_AVG_1H / CYCLES_AVG_10MIN)] = avg10.mean;
+        PMDataAveraged to_print = {avg10.pm2_5_avg, avg10.pm2_5_max, avg10.pm2_5_min, avg10.pm2_5_std};
+        log_avg10_data(&to_print);
+        save_temporal_average_to_csv(&avg10, "/AVG10/avg10.csv");
     }
 
-    if (cycle_counter % CYCLES_AVG_1H == 0) {
+    if (is_1hour_boundary(dt) && hourly_index > 0) {
+        int count = (hourly_index < AVG10_PER_HOUR) ? hourly_index : AVG10_PER_HOUR;
         PMDataAveraged avg1h;
-        avg1h.mean =
-            calculateAverage(buffer_1h, CYCLES_AVG_1H / CYCLES_AVG_10MIN);
-        avg1h.max = findMaxValue(buffer_1h, CYCLES_AVG_1H / CYCLES_AVG_10MIN);
-        avg1h.min = findMinValue(buffer_1h, CYCLES_AVG_1H / CYCLES_AVG_10MIN);
-        avg1h.std =
-            calculateStandardDeviation(buffer_1h, CYCLES_AVG_1H / CYCLES_AVG_10MIN);
+        avg1h.mean = calculateAverage(hourly_avgs, count);
+        avg1h.max = findMaxValue(hourly_avgs, count);
+        avg1h.min = findMinValue(hourly_avgs, count);
+        avg1h.std = calculateStandardDeviation(hourly_avgs, count);
+
         log_avg1h_data(&avg1h);
 
-        buffer_24h[index_24h++ % (CYCLES_AVG_24H / CYCLES_AVG_1H)] = avg1h.mean;
+        daily_avgs[daily_index % AVG1H_PER_DAY] = avg1h.mean;
+        daily_index++;
+
+        TimeSyncedAverage ta = { .timestamp = *dt, .pm2_5_avg = avg1h.mean, .sample_count = count,
+                                 .pm2_5_min = avg1h.min, .pm2_5_max = avg1h.max, .pm2_5_std = avg1h.std };
+        save_temporal_average_to_csv(&ta, "/AVG60/avg60.csv");
     }
 
-    if (cycle_counter % CYCLES_AVG_24H == 0) {
+    if (is_24hour_boundary(dt) && daily_index > 0) {
+        int count = (daily_index < AVG1H_PER_DAY) ? daily_index : AVG1H_PER_DAY;
         PMDataAveraged avg24;
-        avg24.mean =
-            calculateAverage(buffer_24h, CYCLES_AVG_24H / CYCLES_AVG_1H);
-        avg24.max = findMaxValue(buffer_24h, CYCLES_AVG_24H / CYCLES_AVG_1H);
-        avg24.min = findMinValue(buffer_24h, CYCLES_AVG_24H / CYCLES_AVG_1H);
-        avg24.std =
-            calculateStandardDeviation(buffer_24h, CYCLES_AVG_24H / CYCLES_AVG_1H);
+        avg24.mean = calculateAverage(daily_avgs, count);
+        avg24.max = findMaxValue(daily_avgs, count);
+        avg24.min = findMinValue(daily_avgs, count);
+        avg24.std = calculateStandardDeviation(daily_avgs, count);
+
         log_avg24h_data(&avg24);
+
+        TimeSyncedAverage ta = { .timestamp = *dt, .pm2_5_avg = avg24.mean, .sample_count = count,
+                                 .pm2_5_min = avg24.min, .pm2_5_max = avg24.max, .pm2_5_std = avg24.std };
+        save_temporal_average_to_csv(&ta, "/AVG24/avg24.csv");
     }
 }
 
 void proceso_analisis_periodico(float pm25_actual) {
-    buffer_10min[index_10min++ % CYCLES_AVG_10MIN] = pm25_actual;
-    data_logger_check_cycle_averages();
+    ds3231_time_t dt;
+    if (!ds3231_get_datetime(&dt)) {
+        return;
+    }
+
+    accumulate_sample_in_current_window(pm25_actual, &dt);
+    data_logger_check_time_averages(&dt);
 }
 
 bool data_logger_init(void) {
@@ -599,6 +667,17 @@ BufferCircular * get_buffer_hourly(void) {
 BufferCircular * get_buffer_daily(void) {
     return &buffer_dia;
 }
+TimeWindow * get_time_window(void) {
+    return &current_window;
+}
+float * get_avg1h_buffer(void) {
+    return hourly_avgs;
+}
+float * get_avg24h_buffer(void) {
+    return daily_avgs;
+}
+int get_hourly_index(void) { return hourly_index; }
+int get_daily_index(void) { return daily_index; }
 #endif
 
 /* === End of documentation ==================================================================== */

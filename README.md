@@ -164,7 +164,7 @@ graph TD
 | **💾 MicroSD + FatFS** | ✅ Completo | FAT32, estructura `/YYYY/MM/DD/`, sincronización |
 | **📊 Proceso Observador** | ✅ Completo | Muestreo c/1min, validación, reintentos × 3 |
 | **📈 Análisis Estadístico** | ✅ Completo | Media, máx/mín, desviación, validación |
-| **🗃️ Data Logger** | ✅ Completo | Buffers circulares, CSV temporal, error handling |
+| **🗃️ Data Logger** | ✅ Completo | Buffers circulares, CSV temporal, promedios sincronizados al RTC |
 | **🕰️ Gestión de Tiempo** | ✅ Completo | Unificación RTC, timestamps ISO8601 |
 | **📱 Debug UART** | ✅ Completo | Terminal serie, logs detallados |
 | **🌐 WiFi ESP8266** | 🔄 En desarrollo | Buffer reintentos, protocolo HTTP |
@@ -292,6 +292,12 @@ cd Tesis_SPS30
 2025-06-16T00:02:58Z,1,3.6,4.0,4.3,4.4,15.0,58.2,16.1,91.8
 2025-06-16T00:03:25Z,1,2.0,2.3,2.5,2.5,15.0,58.2,16.1,91.9
 2025-06-16T00:03:52Z,1,3.3,3.5,3.5,3.5,15.0,58.4,16.1,91.9
+```
+
+Ejemplo de promedio sincronizado por tiempo:
+```csv
+timestamp,type,pm2_5_avg,sample_count,pm2_5_min,pm2_5_max,pm2_5_std
+2025-06-16 12:10:00,avg10,10.0,60,10.0,10.0,0.0
 ```
 
 **Características del formato CSV implementado:**
