@@ -117,16 +117,10 @@ static void buffer_circular_agregar(BufferCircular * buffer, const MedicionMP * 
     memcpy(&buffer->datos[indice], medicion, sizeof(MedicionMP));
 }
 
-static int seconds_since_midnight(const ds3231_time_t * t) {
-    return t->hour * 3600 + t->min * 60 + t->sec;
-}
 
-static int time_diff_seconds(const ds3231_time_t * start, const ds3231_time_t * end) {
-    int diff = seconds_since_midnight(end) - seconds_since_midnight(start);
-    if (diff < 0)
-        diff += 24 * 3600;
-    return diff;
-}
+
+static unsigned int time_diff_seconds(const ds3231_time_t * start,
+                                      const ds3231_time_t * end);
 
 static bool is_10min_boundary(const ds3231_time_t * dt) {
     return time_diff_seconds(&current_window.start_time, dt) >= 10 * 60;
