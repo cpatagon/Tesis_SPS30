@@ -153,7 +153,17 @@ static TimeSyncedAverage finalize_temporal_window(void) {
     return avg;
 }
 
+static void ensure_avg_directories(void) {
+    const char *dirs[] = {"/AVG10", "/AVG60", "/AVG24"};
+    for (unsigned int i = 0; i < sizeof(dirs) / sizeof(dirs[0]); i++) {
+        if (f_stat(dirs[i], NULL) != FR_OK) {
+            f_mkdir(dirs[i]);
+        }
+    }
+}
+
 static void save_temporal_average_to_csv(const TimeSyncedAverage * avg, const char * path) {
+    ensure_avg_directories();
     const char * type = "UNK";
     if (strstr(path, "AVG10"))
         type = "avg10";
@@ -283,6 +293,7 @@ bool data_logger_init(void) {
     }
 
     uart_print("[OK] microSD montada correctamente\r\n");
+    ensure_avg_directories();
     sd_mounted = true;
     return true;
 }
