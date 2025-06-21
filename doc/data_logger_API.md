@@ -129,6 +129,23 @@ graph TD
 
 ---
 
+## Tabla de funciones
+
+| Función                       | Descripción                                                    | Entrada                                                     | Salida               |
+|------------------------------|----------------------------------------------------------------|-------------------------------------------------------------|----------------------|
+| data_logger_init             | Inicializa microSD y crea carpetas base                        | Ninguna                                                     | `bool` (éxito o fallo) |
+| data_logger_store_measurement| Almacena una medición en los buffers circulares                | `sensor_id`, `ConcentracionesPM`, `temperatura`, `humedad` | `bool` (éxito)         |
+| data_logger_get_average_pm25 | Calcula el promedio de PM2.5 en el buffer                      | `sensor_id`, `num_mediciones`                              | `float` (promedio)    |
+| data_logger_print_summary    | Imprime por UART el estado de buffers y últimas mediciones     | Ninguna                                                     | `void`                |
+| log_avg10_data               | Guarda e imprime el promedio de 10 minutos                     | `const PMDataAveraged *avg`                                | `void`                |
+| log_avg1h_data               | Guarda e imprime el promedio de 1 hora                         | `const PMDataAveraged *avg`                                | `void`                |
+| log_avg24h_data              | Guarda e imprime el promedio de 24 horas                       | `const PMDataAveraged *avg`                                | `void`                |
+| guardar_promedio_csv        | Guarda línea de promedios múltiples en archivo con timestamp    | `pm1_0`, `pm2_5`, `pm4_0`, `pm10`, `temp`, `hum`           | `FRESULT`             |
+| proceso_analisis_periodico  | Acumula muestra y genera promedio si corresponde                | `float pm25_actual`                                        | `void`                |
+| data_logger_write_csv_line  | Escribe una estructura como línea CSV en archivo                | `const ParticulateData *data`                              | `bool`                |
+| data_logger_store_raw       | Escribe datos crudos con metadatos en la microSD                | `const ParticulateData *data`                              | `bool`                |
+
+---
 ## ✍️ Autoría
 
 - **Autor:** Luis Gómez
