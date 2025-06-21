@@ -7,6 +7,8 @@ test/
 ### ceeding ###
 build/
 
+# Ignorar carpetas de compilación
+Debug/
 
 ### settings ###
 .settings/
