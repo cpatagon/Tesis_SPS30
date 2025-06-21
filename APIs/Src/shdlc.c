@@ -1,6 +1,7 @@
 /*
  * shdlc.c
  *
+ *
  *  Created on: 16-03-2024
  *      Author: lgomez
  */
@@ -9,31 +10,6 @@
 #include <stdint.h>
 #include <string.h>
 #include "shdlc.h"
-
-// Shdlc_FrameMiso SHDLC_GetFrameMiso(const uint8_t* DataFrame, size_t DataLength) {
-//
-////	SHDLC_LoadMyVector(Shdlc_FrameMiso* frame, const uint8_t* DataFrame, size_t DataFrameSize);
-//
-//    Shdlc_FrameMiso Newframe = {
-//        .adr = DataFrame[1],
-//        .cmd = DataFrame[2],
-//        .lon = DataFrame[3], // Supongamos que solo hay 3 bytes significativos de datos
-//        .myVector = {0xAA, 0xBB, 0xCC}, // Datos de ejemplo
-//        .chk = 0xFF // Checksum de ejemplo
-//    };
-//    return frame;
-//}
-
-/**
- * @brief Carga el vector de datos myVector de una estructura Shdlc_FrameMiso basado
- * 		  en los datos contenidos en un arreglo DataFrame.
- *
- * @param frame Un puntero a una estructura Shdlc_FrameMiso donde se cargará myVector.
- * @param DataFrame Un arreglo de bytes que contiene los datos a copiar en myVector.
- * @param DataFrameSize El tamaño total del arreglo DataFrame para evitar
- *        desbordamientos de búfer.
- * @return void
- */
 
 void SHDLC_LoadMyVector(Shdlc_FrameMiso * frame, const uint8_t * DataFrame, size_t DataFrameSize) {
     if (frame == NULL || DataFrame == NULL || DataFrameSize < 5) {

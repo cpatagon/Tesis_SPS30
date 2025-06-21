@@ -1,0 +1,6 @@
+pm25_avg10.c:35:6:pm25_avg10_add_sample	2
+pm25_avg10.c:41:13:clear_buffer	1
+pm25_avg10.c:46:13:is_valid_sample	3
+pm25_avg10.c:50:17:count_valid_samples	3
+pm25_avg10.c:58:13:save_avg_csv	1
+pm25_avg10.c:77:6:pm25_avg10_process	6

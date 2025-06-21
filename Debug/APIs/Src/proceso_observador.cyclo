@@ -1,5 +1,5 @@
-proceso_observador.c:38:6:proceso_observador	1
-proceso_observador.c:47:6:proceso_observador_with_time	3
-proceso_observador.c:64:6:proceso_observador_3PM_2TH	1
-proceso_observador.c:72:13:proceso_observador_base	11
-proceso_observador.c:134:6:registrar_lectura_pm25	4
+proceso_observador.c:35:6:proceso_observador	1
+proceso_observador.c:42:6:proceso_observador_with_time	3
+proceso_observador.c:57:6:proceso_observador_3PM_2TH	1
+proceso_observador.c:63:13:proceso_observador_base	11
+proceso_observador.c:123:6:registrar_lectura_pm25	4
