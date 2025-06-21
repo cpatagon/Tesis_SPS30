@@ -56,6 +56,14 @@ extern "C" {
  */
 bool microSD_appendLineAbsolute(const char * filepath, const char * line);
 
+/**
+ * @brief Imprime un mensaje descriptivo según el código de error de FatFS.
+ *
+ * Esta función traduce el código de error devuelto por FatFS a un texto
+ * legible y lo envía por la interfaz UART de depuración.
+ *
+ * @param res Código de error retornado por una función FatFS.
+ */
 void print_fatfs_error(FRESULT res);
 
 /* === End of documentation ==================================================================== */
