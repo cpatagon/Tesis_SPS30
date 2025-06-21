@@ -9,6 +9,13 @@ build/
 
 # Ignorar carpetas de compilación
 Debug/
+Release/
+*.elf
+*.map
+*.lst
+*.o
+*.d
+*.bak
 
 ### settings ###
 .settings/
