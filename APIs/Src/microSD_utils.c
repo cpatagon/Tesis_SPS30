@@ -93,6 +93,14 @@ bool microSD_appendLineAbsolute(const char * filepath, const char * line) {
     return (res == FR_OK && bw == strlen(line));
 }
 
+/**
+ * @brief Imprime un mensaje descriptivo del código de error de FatFS.
+ *
+ * Se utiliza para depurar fallas relacionadas con la biblioteca FatFS.
+ * Cada código se traduce a una cadena que se envía por UART.
+ *
+ * @param res Código de error proporcionado por una función FatFS.
+ */
 void print_fatfs_error(FRESULT res) {
     char msg[64];
     snprintf(msg, sizeof(msg), "f_mount() error code: %d\r\n", res);
