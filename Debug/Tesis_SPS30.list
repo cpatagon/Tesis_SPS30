@@ -29,23 +29,23 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  12 .ARM.attributes 00000030  00000000  00000000  0003034c  2**0
                   CONTENTS, READONLY
- 13 .debug_info   0001f728  00000000  00000000  0003037c  2**0
+ 13 .debug_info   0001f73f  00000000  00000000  0003037c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_abbrev 00005349  00000000  00000000  0004faa4  2**0
+ 14 .debug_abbrev 00005347  00000000  00000000  0004fabb  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_aranges 000016c0  00000000  00000000  00054df0  2**3
+ 15 .debug_aranges 000016c0  00000000  00000000  00054e08  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_ranges 00001448  00000000  00000000  000564b0  2**3
+ 16 .debug_ranges 00001448  00000000  00000000  000564c8  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_macro  0002bb7d  00000000  00000000  000578f8  2**0
+ 17 .debug_macro  0002bb7d  00000000  00000000  00057910  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_line   00027c06  00000000  00000000  00083475  2**0
+ 18 .debug_line   00027c06  00000000  00000000  0008348d  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .debug_str    000e3159  00000000  00000000  000ab07b  2**0
+ 19 .debug_str    000e3159  00000000  00000000  000ab093  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 20 .comment      00000050  00000000  00000000  0018e1d4  2**0
+ 20 .comment      00000050  00000000  00000000  0018e1ec  2**0
                   CONTENTS, READONLY
- 21 .debug_frame  000070a4  00000000  00000000  0018e224  2**2
+ 21 .debug_frame  000070a4  00000000  00000000  0018e23c  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -2785,10 +2785,10 @@ float calculateStandardDeviation(float data[], int n) {
  8001a2c:	c4424000 	.word	0xc4424000
 
 08001a30 <is_10min_boundary>:
-
-
-static unsigned int time_diff_seconds(const ds3231_time_t * start,
-                                      const ds3231_time_t * end);
+ *
+ * @param dt Puntero a la estructura de tiempo actual (`ds3231_time_t`).
+ * @return true si han pasado 10 minutos o más; false en caso contrario.
+ */
 
 static bool is_10min_boundary(const ds3231_time_t * dt) {
  8001a30:	b580      	push	{r7, lr}
@@ -2814,9 +2814,9 @@ static bool is_10min_boundary(const ds3231_time_t * dt) {
  8001a58:	20002058 	.word	0x20002058
 
 08001a5c <time_diff_seconds>:
-static bool is_24hour_boundary(const ds3231_time_t * dt) {
-    return time_diff_seconds(&daily_start_time, dt) >= 24 * 3600;
-}
+ * @note Esta función asume que ambos tiempos corresponden a la misma fecha o que la diferencia
+ *       no supera un día completo. No considera cambios de fecha (solo de hora).
+ */
 
 static unsigned int time_diff_seconds(const ds3231_time_t * start,
                                       const ds3231_time_t * end) {
@@ -2886,6 +2886,10 @@ static unsigned int time_diff_seconds(const ds3231_time_t * start,
 	...
 
 08001adc <accumulate_sample_in_current_window>:
+ *
+ * @param sample Muestra de concentración PM2.5.
+ * @param dt     Puntero a la estructura `ds3231_time_t` con el timestamp de la muestra.
+ */
 
 static void accumulate_sample_in_current_window(float sample, const ds3231_time_t * dt) {
  8001adc:	b480      	push	{r7}
@@ -2961,6 +2965,10 @@ static void accumulate_sample_in_current_window(float sample, const ds3231_time_
  8001b64:	200021dc 	.word	0x200021dc
 
 08001b68 <finalize_temporal_window>:
+ * Luego, limpia el buffer para el siguiente intervalo de 10 minutos.
+ *
+ * @return Estructura `TimeSyncedAverage` con los valores calculados y timestamp inicial.
+ */
 
 static TimeSyncedAverage finalize_temporal_window(void) {
  8001b68:	b5b0      	push	{r4, r5, r7, lr}
@@ -3047,6 +3055,10 @@ static TimeSyncedAverage finalize_temporal_window(void) {
  8001c24:	20002060 	.word	0x20002060
 
 08001c28 <ensure_avg_directories>:
+ *
+ * Verifica y crea (si es necesario) los directorios `/AVG10`, `/AVG60` y `/AVG24`
+ * en la microSD. Esto asegura que existan antes de guardar archivos CSV.
+ */
 
 static void ensure_avg_directories(void) {
  8001c28:	b580      	push	{r7, lr}
@@ -3099,6 +3111,10 @@ static void ensure_avg_directories(void) {
  8001c80:	08011df8 	.word	0x08011df8
 
 08001c84 <save_temporal_average_to_csv>:
+ *
+ * @param avg  Puntero a la estructura `TimeSyncedAverage` con los datos procesados.
+ * @param path Ruta absoluta al archivo CSV donde se escribirá la línea.
+ */
 
 static void save_temporal_average_to_csv(const TimeSyncedAverage * avg, const char * path) {
  8001c84:	e92d 4ff0 	stmdb	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}
@@ -3256,11 +3272,11 @@ static void save_temporal_average_to_csv(const TimeSyncedAverage * avg, const ch
  8001da8:	08011e38 	.word	0x08011e38
 
 08001dac <log_avg10_data>:
-void log_avg24h_data(const PMDataAveraged * avg);
-
-void data_logger_increment_cycle(void);
-void data_logger_check_cycle_averages(void);
-
+ * Escribe una línea en el archivo `/AVG10/avg10.csv` con los valores estadísticos
+ * de la concentración de PM2.5. También imprime el resumen por UART para monitoreo.
+ *
+ * @param avg Puntero a la estructura `PMDataAveraged` con los datos a registrar.
+ */
 void log_avg10_data(const PMDataAveraged * avg) {
  8001dac:	e92d 4fb0 	stmdb	sp!, {r4, r5, r7, r8, r9, sl, fp, lr}
  8001db0:	b0aa      	sub	sp, #168	; 0xa8
@@ -3360,7 +3376,11 @@ void log_avg10_data(const PMDataAveraged * avg) {
  8001e78:	08011ea0 	.word	0x08011ea0
 
 08001e7c <log_avg1h_data>:
-
+ * Escribe una línea en el archivo `/AVG60/avg60.csv` con los valores estadísticos
+ * del promedio horario de PM2.5. También imprime el resumen por UART.
+ *
+ * @param avg Puntero a la estructura `PMDataAveraged` con los datos a registrar.
+ */
 void log_avg1h_data(const PMDataAveraged * avg) {
  8001e7c:	e92d 4fb0 	stmdb	sp!, {r4, r5, r7, r8, r9, sl, fp, lr}
  8001e80:	b0aa      	sub	sp, #168	; 0xa8
@@ -3458,6 +3478,10 @@ void log_avg1h_data(const PMDataAveraged * avg) {
  8001f48:	08011f00 	.word	0x08011f00
 
 08001f4c <log_avg24h_data>:
+ * del promedio diario de PM2.5. También imprime el resumen por UART.
+ *
+ * @param avg Puntero a la estructura `PMDataAveraged` con los datos a registrar.
+ */
 
 void log_avg24h_data(const PMDataAveraged * avg) {
  8001f4c:	e92d 4fb0 	stmdb	sp!, {r4, r5, r7, r8, r9, sl, fp, lr}
@@ -3558,7 +3582,11 @@ void log_avg24h_data(const PMDataAveraged * avg) {
  8002018:	08011f5c 	.word	0x08011f5c
 
 0800201c <data_logger_increment_cycle>:
-
+ * @brief Función de compatibilidad para manejo de ciclos (actualmente no utilizada).
+ *
+ * Esta función existía para el control basado en conteo de muestras o ciclos,
+ * pero ha sido reemplazada por el control temporal basado en RTC.
+ */
 void data_logger_increment_cycle(void) {
  800201c:	b480      	push	{r7}
  800201e:	af00      	add	r7, sp, #0
@@ -3571,7 +3599,11 @@ void data_logger_increment_cycle(void) {
 	...
 
 0800202c <data_logger_check_time_averages>:
-
+ *
+ * Cada promedio se registra en microSD y se imprime vía UART.
+ *
+ * @param dt Puntero a la estructura `ds3231_time_t` con la hora actual.
+ */
 static void data_logger_check_time_averages(const ds3231_time_t * dt) {
  800202c:	b580      	push	{r7, lr}
  800202e:	b0a8      	sub	sp, #160	; 0xa0
@@ -3855,7 +3887,11 @@ static void data_logger_check_time_averages(const ds3231_time_t * dt) {
  800227c:	08011f48 	.word	0x08011f48
 
 08002280 <proceso_analisis_periodico>:
-
+ * Acumula la muestra en la ventana temporal actual y verifica si corresponde
+ * consolidar estadísticas (10 min, 1 h, 24 h).
+ *
+ * @param pm25_actual Valor actual de PM2.5 medido.
+ */
 void proceso_analisis_periodico(float pm25_actual) {
  8002280:	b580      	push	{r7, lr}
  8002282:	b084      	sub	sp, #16
@@ -3893,7 +3929,11 @@ void proceso_analisis_periodico(float pm25_actual) {
 	...
 
 080022c4 <data_logger_init>:
-
+ * Monta la tarjeta microSD, imprime el estado por UART y asegura que existan los
+ * directorios `/AVG10`, `/AVG60` y `/AVG24` para almacenar promedios.
+ *
+ * @return `true` si la inicialización fue exitosa, `false` si hubo error al montar la SD.
+ */
 bool data_logger_init(void) {
  80022c4:	b580      	push	{r7, lr}
  80022c6:	b082      	sub	sp, #8
@@ -3946,10 +3986,10 @@ bool data_logger_init(void) {
  8002318:	08011fa8 	.word	0x08011fa8
 
 0800231c <data_logger_get_average_pm25>:
-
-    return true;
-}
-// función encargada de calcular los promedio de material particulado
+ * @param sensor_id ID del sensor a considerar (0 = todos los sensores).
+ * @param num_mediciones Número de muestras más recientes a promediar.
+ * @return Promedio calculado de PM2.5 o 0 si no hay datos válidos.
+ */
 
 float data_logger_get_average_pm25(uint8_t sensor_id, uint32_t num_mediciones) {
  800231c:	b480      	push	{r7}
@@ -4079,7 +4119,11 @@ float data_logger_get_average_pm25(uint8_t sensor_id, uint32_t num_mediciones) {
  80023f8:	00000000 	.word	0x00000000
 
 080023fc <data_logger_print_summary>:
-
+ *
+ * Muestra:
+ * - Cantidad de muestras almacenadas en cada buffer (alta frecuencia, horario, diario).
+ * - Las 3 últimas mediciones almacenadas con su timestamp, sensor ID y PM2.5.
+ */
 void data_logger_print_summary() {
  80023fc:	b5f0      	push	{r4, r5, r6, r7, lr}
  80023fe:	b0cb      	sub	sp, #300	; 0x12c
@@ -4353,11 +4397,11 @@ bool format_csv_line(const ParticulateData * data, char * csv_line, size_t max_l
  800260c:	0801216c 	.word	0x0801216c
 
 08002610 <data_logger_store_raw>:
-
-    uart_print("Línea escrita correctamente en CSV\r\n");
-    return true;
-}
-
+ * (`RAW_<ID>_YYYYMMDD.CSV`). Agrega encabezado detallado con información del sensor.
+ *
+ * @param data Puntero a la estructura `ParticulateData` con los datos medidos.
+ * @return `true` si la línea fue escrita exitosamente.
+ */
 bool data_logger_store_raw(const ParticulateData * data) {
  8002610:	b5f0      	push	{r4, r5, r6, r7, lr}
  8002612:	f5ad 7d67 	sub.w	sp, sp, #924	; 0x39c
@@ -4681,6 +4725,10 @@ bool data_logger_store_raw(const ParticulateData * data) {
  80028c8:	0801254c 	.word	0x0801254c
 
 080028cc <build_iso8601_timestamp>:
+ * @param buffer Buffer de salida para el timestamp.
+ * @param len    Longitud máxima del buffer.
+ * @param data   Datos con la fecha y hora a convertir.
+ */
 
 void build_iso8601_timestamp(char * buffer, size_t len, const ParticulateData * data) {
  80028cc:	b5b0      	push	{r4, r5, r7, lr}
@@ -6675,7 +6723,11 @@ bool microSD_appendLineAbsolute(const char * filepath, const char * line) {
  800352c:	08012a04 	.word	0x08012a04
 
 08003530 <print_fatfs_error>:
-
+ * Se utiliza para depurar fallas relacionadas con la biblioteca FatFS.
+ * Cada código se traduce a una cadena que se envía por UART.
+ *
+ * @param res Código de error proporcionado por una función FatFS.
+ */
 void print_fatfs_error(FRESULT res) {
  8003530:	b580      	push	{r7, lr}
  8003532:	b092      	sub	sp, #72	; 0x48
@@ -8165,10 +8217,10 @@ void sensors_init_all(void) {
  8004048:	20002204 	.word	0x20002204
 
 0800404c <SHDLC_LoadMyVector>:
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
 #include "shdlc.h"
-
-
-
 
 void SHDLC_LoadMyVector(Shdlc_FrameMiso * frame, const uint8_t * DataFrame, size_t DataFrameSize) {
  800404c:	b580      	push	{r7, lr}

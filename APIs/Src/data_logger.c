@@ -45,11 +45,20 @@
 #include "mp_sensors_info.h"
 
 #ifdef UNIT_TESTING
-float calculateAverage(float data[], int n_data) { return 0.0f; }
-float findMaxValue(float data[], int n_data) { return 0.0f; }
-float findMinValue(float data[], int n_data) { return 0.0f; }
-float calculateStandardDeviation(float data[], int n) { return 0.0f; }
-void print_fatfs_error(FRESULT res) {}
+float calculateAverage(float data[], int n_data) {
+    return 0.0f;
+}
+float findMaxValue(float data[], int n_data) {
+    return 0.0f;
+}
+float findMinValue(float data[], int n_data) {
+    return 0.0f;
+}
+float calculateStandardDeviation(float data[], int n) {
+    return 0.0f;
+}
+void print_fatfs_error(FRESULT res) {
+}
 #endif
 /* === Macros definitions ====================================================================== */
 
@@ -117,25 +126,83 @@ static void buffer_circular_agregar(BufferCircular * buffer, const MedicionMP * 
     memcpy(&buffer->datos[indice], medicion, sizeof(MedicionMP));
 }
 
+/**
+ * @brief Calcula la diferencia de tiempo en segundos entre dos instantes del día.
+ *
+ * Esta función calcula cuántos segundos han pasado entre `start` y `end`,
+ * considerando un ciclo horario de 24 horas. Si `end` es anterior a `start`,
+ * se asume que ocurrió un cambio de día.
+ *
+ * @param start Puntero a la estructura de tiempo inicial (`ds3231_time_t`).
+ * @param end   Puntero a la estructura de tiempo final (`ds3231_time_t`).
+ * @return Diferencia de tiempo en segundos (ajustada para rollover diario).
+ */
 
+static unsigned int time_diff_seconds(const ds3231_time_t * start, const ds3231_time_t * end);
 
-static unsigned int time_diff_seconds(const ds3231_time_t * start,
-                                      const ds3231_time_t * end);
+/**
+ * @brief Verifica si ha transcurrido un intervalo de 10 minutos desde el tiempo inicial del buffer
+ * de 10min.
+ *
+ * Compara el tiempo actual `dt` con `current_window.start_time`, y determina si han transcurrido
+ * al menos 600 segundos (10 minutos).
+ *
+ * @param dt Puntero a la estructura de tiempo actual (`ds3231_time_t`).
+ * @return true si han pasado 10 minutos o más; false en caso contrario.
+ */
 
 static bool is_10min_boundary(const ds3231_time_t * dt) {
     return time_diff_seconds(&current_window.start_time, dt) >= 10 * 60;
 }
 
+/**
+ * @brief Verifica si ha transcurrido una hora desde el tiempo inicial del buffer horario.
+ *
+ * Compara el tiempo actual `dt` con `hourly_start_time`, y determina si han transcurrido
+ * al menos 3600 segundos (1 hora).
+ *
+ * @param dt Puntero a la estructura de tiempo actual (`ds3231_time_t`).
+ * @return true si ha pasado 1 hora o más; false en caso contrario.
+ */
+
 static bool is_1hour_boundary(const ds3231_time_t * dt) {
     return time_diff_seconds(&hourly_start_time, dt) >= 60 * 60;
 }
+
+/**
+ * @brief Verifica si ha transcurrido un intervalo de 24 horas desde el tiempo inicial del buffer
+ * diario.
+ *
+ * Compara el tiempo actual `dt` con `daily_start_time`, y determina si han transcurrido
+ * al menos 86400 segundos (24 horas).
+ *
+ * @param dt Puntero a la estructura de tiempo actual (`ds3231_time_t`).
+ * @return true si han pasado 24 horas o más; false en caso contrario.
+ */
 
 static bool is_24hour_boundary(const ds3231_time_t * dt) {
     return time_diff_seconds(&daily_start_time, dt) >= 24 * 3600;
 }
 
-static unsigned int time_diff_seconds(const ds3231_time_t * start,
-                                      const ds3231_time_t * end) {
+/**
+ * @brief Calcula la diferencia de tiempo en segundos entre dos instantes del mismo día o con
+ * rollover.
+ *
+ * Esta función convierte dos estructuras de tiempo (`ds3231_time_t`) en segundos desde las 00:00:00
+ * y calcula la diferencia entre ellas. Si `end` ocurre antes que `start` (por ejemplo, cuando hay
+ * un cambio de día), ajusta la diferencia para considerar el rollover de 24 horas.
+ *
+ * @param start Puntero a la estructura `ds3231_time_t` que representa el tiempo inicial.
+ * @param end   Puntero a la estructura `ds3231_time_t` que representa el tiempo final.
+ *
+ * @return Diferencia en segundos entre `end` y `start`. El resultado siempre es no negativo
+ *         y está en el rango [0, 86399].
+ *
+ * @note Esta función asume que ambos tiempos corresponden a la misma fecha o que la diferencia
+ *       no supera un día completo. No considera cambios de fecha (solo de hora).
+ */
+
+static unsigned int time_diff_seconds(const ds3231_time_t * start, const ds3231_time_t * end) {
     int start_s = start->hour * 3600 + start->min * 60 + start->sec;
     int end_s = end->hour * 3600 + end->min * 60 + end->sec;
     int diff = end_s - start_s;
@@ -143,6 +210,17 @@ static unsigned int time_diff_seconds(const ds3231_time_t * start,
         diff += 24 * 3600;
     return (unsigned int)diff;
 }
+
+/**
+ * @brief Acumula una muestra de PM2.5 en la ventana temporal actual de 10 minutos.
+ *
+ * Esta función guarda el valor de la muestra en un buffer si hay espacio disponible.
+ * Si es la primera muestra del ciclo, inicializa los tiempos de referencia para
+ * los cálculos de promedios a 10 minutos, 1 hora y 24 horas.
+ *
+ * @param sample Muestra de concentración PM2.5.
+ * @param dt     Puntero a la estructura `ds3231_time_t` con el timestamp de la muestra.
+ */
 
 static void accumulate_sample_in_current_window(float sample, const ds3231_time_t * dt) {
     if (current_window.count == 0) {
@@ -157,6 +235,16 @@ static void accumulate_sample_in_current_window(float sample, const ds3231_time_
         current_window.samples[current_window.count++] = sample;
     }
 }
+
+/**
+ * @brief Calcula los estadísticos de la ventana de datos de 10 minutos y reinicia el buffer.
+ *
+ * Esta función genera un resumen estadístico (promedio, mínimo, máximo, desviación estándar)
+ * de las muestras acumuladas y retorna una estructura `TimeSyncedAverage` con los resultados.
+ * Luego, limpia el buffer para el siguiente intervalo de 10 minutos.
+ *
+ * @return Estructura `TimeSyncedAverage` con los valores calculados y timestamp inicial.
+ */
 
 static TimeSyncedAverage finalize_temporal_window(void) {
     TimeSyncedAverage avg = {0};
@@ -174,14 +262,32 @@ static TimeSyncedAverage finalize_temporal_window(void) {
     return avg;
 }
 
+/**
+ * @brief Crea los directorios base de almacenamiento para promedios si no existen.
+ *
+ * Verifica y crea (si es necesario) los directorios `/AVG10`, `/AVG60` y `/AVG24`
+ * en la microSD. Esto asegura que existan antes de guardar archivos CSV.
+ */
+
 static void ensure_avg_directories(void) {
-    const char *dirs[] = {"/AVG10", "/AVG60", "/AVG24"};
+    const char * dirs[] = {"/AVG10", "/AVG60", "/AVG24"};
     for (unsigned int i = 0; i < sizeof(dirs) / sizeof(dirs[0]); i++) {
         if (f_stat(dirs[i], NULL) != FR_OK) {
             f_mkdir(dirs[i]);
         }
     }
 }
+
+/**
+ * @brief Guarda una estructura `TimeSyncedAverage` en un archivo CSV de la microSD.
+ *
+ * Formatea los datos de la estructura `avg` en una línea CSV, detecta el tipo
+ * de promedio según la ruta (AVG10, AVG60, AVG24), y guarda el resultado en
+ * la ubicación especificada por `path`.
+ *
+ * @param avg  Puntero a la estructura `TimeSyncedAverage` con los datos procesados.
+ * @param path Ruta absoluta al archivo CSV donde se escribirá la línea.
+ */
 
 static void save_temporal_average_to_csv(const TimeSyncedAverage * avg, const char * path) {
     ensure_avg_directories();
@@ -195,23 +301,23 @@ static void save_temporal_average_to_csv(const TimeSyncedAverage * avg, const ch
 
     char line[128];
     snprintf(line, sizeof(line), "%04d-%02d-%02d %02d:%02d:%02d,%s,%.2f,%u,%.2f,%.2f,%.2f\n",
-             avg->timestamp.year, avg->timestamp.month, avg->timestamp.day,
-             avg->timestamp.hour, avg->timestamp.min, avg->timestamp.sec,
-             type, avg->pm2_5_avg, avg->sample_count, avg->pm2_5_min,
-             avg->pm2_5_max, avg->pm2_5_std);
+             avg->timestamp.year, avg->timestamp.month, avg->timestamp.day, avg->timestamp.hour,
+             avg->timestamp.min, avg->timestamp.sec, type, avg->pm2_5_avg, avg->sample_count,
+             avg->pm2_5_min, avg->pm2_5_max, avg->pm2_5_std);
 
     microSD_appendLineAbsolute(path, line);
 }
 
 /* === Public function implementation ========================================================== */
 
-void log_avg10_data(const PMDataAveraged * avg);
-void log_avg1h_data(const PMDataAveraged * avg);
-void log_avg24h_data(const PMDataAveraged * avg);
-
-void data_logger_increment_cycle(void);
-void data_logger_check_cycle_averages(void);
-
+/**
+ * @brief Registra en la microSD los datos promediados de PM2.5 cada 10 minutos.
+ *
+ * Escribe una línea en el archivo `/AVG10/avg10.csv` con los valores estadísticos
+ * de la concentración de PM2.5. También imprime el resumen por UART para monitoreo.
+ *
+ * @param avg Puntero a la estructura `PMDataAveraged` con los datos a registrar.
+ */
 void log_avg10_data(const PMDataAveraged * avg) {
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "%.2f,%.2f,%.2f,%.2f\n", avg->mean, avg->max, avg->min,
@@ -223,6 +329,14 @@ void log_avg10_data(const PMDataAveraged * avg) {
                avg->mean, avg->max, avg->min, avg->std);
 }
 
+/**
+ * @brief Registra en la microSD los datos promediados de PM2.5 cada 1 hora.
+ *
+ * Escribe una línea en el archivo `/AVG60/avg60.csv` con los valores estadísticos
+ * del promedio horario de PM2.5. También imprime el resumen por UART.
+ *
+ * @param avg Puntero a la estructura `PMDataAveraged` con los datos a registrar.
+ */
 void log_avg1h_data(const PMDataAveraged * avg) {
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "%.2f,%.2f,%.2f,%.2f\n", avg->mean, avg->max, avg->min,
@@ -233,6 +347,15 @@ void log_avg1h_data(const PMDataAveraged * avg) {
     uart_print("[PROMEDIO 1h] PM2.5 -> media: %.2f, max: %.2f, min: %.2f, std: %.2f\r\n", avg->mean,
                avg->max, avg->min, avg->std);
 }
+
+/**
+ * @brief Registra en la microSD los datos promediados de PM2.5 cada 24 horas.
+ *
+ * Escribe una línea en el archivo `/AVG24/avg24.csv` con los valores estadísticos
+ * del promedio diario de PM2.5. También imprime el resumen por UART.
+ *
+ * @param avg Puntero a la estructura `PMDataAveraged` con los datos a registrar.
+ */
 
 void log_avg24h_data(const PMDataAveraged * avg) {
     char buffer[128];
@@ -245,10 +368,29 @@ void log_avg24h_data(const PMDataAveraged * avg) {
                avg->mean, avg->max, avg->min, avg->std);
 }
 
+/**
+ * @brief Función de compatibilidad para manejo de ciclos (actualmente no utilizada).
+ *
+ * Esta función existía para el control basado en conteo de muestras o ciclos,
+ * pero ha sido reemplazada por el control temporal basado en RTC.
+ */
 void data_logger_increment_cycle(void) {
     // Ya no se utiliza el contador de ciclos
 }
 
+/**
+ * @brief Verifica si ha transcurrido el tiempo necesario para consolidar promedios de PM2.5.
+ *
+ * Esta función compara el tiempo actual (`dt`) con el inicio de la ventana de 10 minutos.
+ * Si han pasado al menos 600 segundos, consolida los datos en:
+ * - Promedio de 10 minutos
+ * - Promedio de 1 hora (si se completan 6 bloques de 10 minutos)
+ * - Promedio de 24 horas (si se completan 24 bloques de 1 hora)
+ *
+ * Cada promedio se registra en microSD y se imprime vía UART.
+ *
+ * @param dt Puntero a la estructura `ds3231_time_t` con la hora actual.
+ */
 static void data_logger_check_time_averages(const ds3231_time_t * dt) {
     bool finalize10 = false;
     if (current_window.count > 0) {
@@ -263,10 +405,10 @@ static void data_logger_check_time_averages(const ds3231_time_t * dt) {
         hourly_avgs[hourly_index % AVG10_PER_HOUR] = avg10.pm2_5_avg;
         hourly_index++;
 
-        PMDataAveraged to_print = {avg10.pm2_5_avg, avg10.pm2_5_max, avg10.pm2_5_min, avg10.pm2_5_std};
+        PMDataAveraged to_print = {avg10.pm2_5_avg, avg10.pm2_5_max, avg10.pm2_5_min,
+                                   avg10.pm2_5_std};
         log_avg10_data(&to_print);
         save_temporal_average_to_csv(&avg10, "/AVG10/avg10.csv");
-
 
         if (hourly_index % AVG10_PER_HOUR == 0) {
             int count = AVG10_PER_HOUR;
@@ -281,8 +423,12 @@ static void data_logger_check_time_averages(const ds3231_time_t * dt) {
             daily_avgs[daily_index % AVG1H_PER_DAY] = avg1h.mean;
             daily_index++;
 
-            TimeSyncedAverage ta = { .timestamp = *dt, .pm2_5_avg = avg1h.mean, .sample_count = count,
-                                     .pm2_5_min = avg1h.min, .pm2_5_max = avg1h.max, .pm2_5_std = avg1h.std };
+            TimeSyncedAverage ta = {.timestamp = *dt,
+                                    .pm2_5_avg = avg1h.mean,
+                                    .sample_count = count,
+                                    .pm2_5_min = avg1h.min,
+                                    .pm2_5_max = avg1h.max,
+                                    .pm2_5_std = avg1h.std};
             save_temporal_average_to_csv(&ta, "/AVG60/avg60.csv");
 
             if (daily_index % AVG1H_PER_DAY == 0) {
@@ -295,14 +441,27 @@ static void data_logger_check_time_averages(const ds3231_time_t * dt) {
 
                 log_avg24h_data(&avg24);
 
-                TimeSyncedAverage da = { .timestamp = *dt, .pm2_5_avg = avg24.mean, .sample_count = dcount,
-                                         .pm2_5_min = avg24.min, .pm2_5_max = avg24.max, .pm2_5_std = avg24.std };
+                TimeSyncedAverage da = {.timestamp = *dt,
+                                        .pm2_5_avg = avg24.mean,
+                                        .sample_count = dcount,
+                                        .pm2_5_min = avg24.min,
+                                        .pm2_5_max = avg24.max,
+                                        .pm2_5_std = avg24.std};
                 save_temporal_average_to_csv(&da, "/AVG24/avg24.csv");
             }
         }
     }
 }
 
+/**
+ * @brief Función principal para análisis y registro periódico de PM2.5.
+ *
+ * Debe ser llamada con cada nueva muestra de PM2.5 obtenida.
+ * Acumula la muestra en la ventana temporal actual y verifica si corresponde
+ * consolidar estadísticas (10 min, 1 h, 24 h).
+ *
+ * @param pm25_actual Valor actual de PM2.5 medido.
+ */
 void proceso_analisis_periodico(float pm25_actual) {
     ds3231_time_t dt;
     if (!ds3231_get_datetime(&dt)) {
@@ -313,6 +472,14 @@ void proceso_analisis_periodico(float pm25_actual) {
     data_logger_check_time_averages(&dt);
 }
 
+/**
+ * @brief Inicializa el sistema de almacenamiento y crea directorios base si es necesario.
+ *
+ * Monta la tarjeta microSD, imprime el estado por UART y asegura que existan los
+ * directorios `/AVG10`, `/AVG60` y `/AVG24` para almacenar promedios.
+ *
+ * @return `true` si la inicialización fue exitosa, `false` si hubo error al montar la SD.
+ */
 bool data_logger_init(void) {
     // Inicializar buffers
     FRESULT res = f_mount(&fs, "", 1);
@@ -328,6 +495,19 @@ bool data_logger_init(void) {
     return true;
 }
 
+/**
+ * @brief Almacena una medición puntual de un sensor en los buffers internos.
+ *
+ * Utiliza la hora actual del RTC para crear un timestamp, y guarda los valores
+ * (PM, temperatura y humedad) en los buffers de alta frecuencia, hora y día.
+ *
+ * @param sensor_id   Identificador del sensor que realizó la medición.
+ * @param valores     Concentraciones PM medidas por el sensor.
+ * @param temperatura Temperatura en grados Celsius.
+ * @param humedad     Humedad relativa en porcentaje.
+ *
+ * @return `true` si la medición fue almacenada exitosamente.
+ */
 bool data_logger_store_measurement(uint8_t sensor_id, ConcentracionesPM valores, float temperatura,
                                    float humedad) {
     char timestamp[32];
@@ -352,7 +532,16 @@ bool data_logger_store_measurement(uint8_t sensor_id, ConcentracionesPM valores,
 
     return true;
 }
-// función encargada de calcular los promedio de material particulado
+/**
+ * @brief Calcula el promedio de PM2.5 a partir de las últimas N mediciones disponibles.
+ *
+ * Esta función recorre el buffer circular de alta frecuencia para calcular
+ * el valor promedio de PM2.5, opcionalmente filtrando por sensor_id.
+ *
+ * @param sensor_id ID del sensor a considerar (0 = todos los sensores).
+ * @param num_mediciones Número de muestras más recientes a promediar.
+ * @return Promedio calculado de PM2.5 o 0 si no hay datos válidos.
+ */
 
 float data_logger_get_average_pm25(uint8_t sensor_id, uint32_t num_mediciones) {
     float suma = 0.0f;
@@ -385,6 +574,13 @@ float data_logger_get_average_pm25(uint8_t sensor_id, uint32_t num_mediciones) {
     return (contador > 0) ? (suma / contador) : 0.0f;
 }
 
+/**
+ * @brief Imprime un resumen por UART del estado actual de los buffers de datos.
+ *
+ * Muestra:
+ * - Cantidad de muestras almacenadas en cada buffer (alta frecuencia, horario, diario).
+ * - Las 3 últimas mediciones almacenadas con su timestamp, sensor ID y PM2.5.
+ */
 void data_logger_print_summary() {
     char buffer[256];
 
@@ -419,6 +615,20 @@ void data_logger_print_summary() {
     }
 }
 
+/**
+ * @brief Guarda una línea con promedios multivariable en un archivo CSV con timestamp único.
+ *
+ * Esta función crea un archivo individual para cada promedio usando la hora actual
+ * como parte del nombre de archivo. Registra: PM1.0, PM2.5, PM4.0, PM10, temperatura, humedad.
+ *
+ * @param pm1_0  Promedio de PM1.0
+ * @param pm2_5  Promedio de PM2.5
+ * @param pm4_0  Promedio de PM4.0
+ * @param pm10   Promedio de PM10
+ * @param temp   Temperatura ambiente promedio
+ * @param hum    Humedad relativa promedio
+ * @return Código `FRESULT` del sistema de archivos FatFs.
+ */
 FRESULT guardar_promedio_csv(float pm1_0, float pm2_5, float pm4_0, float pm10, float temp,
                              float hum) {
     FIL archivo;
@@ -482,6 +692,17 @@ bool format_csv_line(const ParticulateData * data, char * csv_line, size_t max_l
     return (written > 0 && (size_t)written < max_len);
 }
 
+/**
+ * @brief Convierte una estructura `ParticulateData` en una línea CSV con timestamp.
+ *
+ * Esta función genera una cadena con formato CSV que incluye:
+ * timestamp ISO8601, sensor_id, concentraciones PM, temperatura y humedad.
+ *
+ * @param data      Estructura con los datos a registrar.
+ * @param csv_line  Buffer de salida para la línea formateada.
+ * @param max_len   Longitud máxima del buffer.
+ * @return `true` si la línea fue generada correctamente, `false` si hubo error de espacio.
+ */
 bool build_csv_filepath_from_datetime(char * filepath, size_t max_len) {
     ds3231_time_t dt;
 
@@ -501,6 +722,14 @@ bool build_csv_filepath_from_datetime(char * filepath, size_t max_len) {
     return (written > 0 && (size_t)written < max_len);
 }
 
+/**
+ * @brief Crea la estructura de carpetas `/YYYY/MM/DD/` en la microSD si no existe.
+ *
+ * Esta función asegura que existan los directorios anidados según fecha actual.
+ *
+ * @param dt Puntero a la fecha actual obtenida del RTC.
+ * @return `true` si todos los directorios fueron creados o ya existían.
+ */
 bool crear_directorio_fecha(const ds3231_time_t * dt) {
     char dirpath[64];
 
@@ -519,12 +748,33 @@ bool crear_directorio_fecha(const ds3231_time_t * dt) {
     return true;
 }
 
+/**
+ * @brief Construye una ruta absoluta hacia un archivo específico dentro de la carpeta de fecha.
+ *
+ * Formato resultante: `/YYYY/MM/DD/<nombre_archivo>`.
+ *
+ * @param dt              Fecha base para construir la ruta.
+ * @param nombre_archivo  Nombre del archivo (ej. `"RAW.csv"`).
+ * @param filepath        Buffer de salida con la ruta completa.
+ * @param len             Tamaño máximo del buffer.
+ * @return `true` si la ruta fue construida correctamente.
+ */
 bool obtener_ruta_archivo(const ds3231_time_t * dt, const char * nombre_archivo, char * filepath,
                           size_t len) {
     int n =
         snprintf(filepath, len, "/%04d/%02d/%02d/%s", dt->year, dt->month, dt->day, nombre_archivo);
     return n > 0 && (size_t)n < len;
 }
+
+/**
+ * @brief Escribe una línea de texto al final de un archivo CSV existente o nuevo.
+ *
+ * Abre (o crea) el archivo y posiciona el puntero al final para agregar la línea.
+ *
+ * @param filepath Ruta completa del archivo donde escribir.
+ * @param linea    Cadena de texto a escribir.
+ * @return `true` si la operación fue exitosa, `false` en caso de error.
+ */
 
 bool escribir_linea_csv(const char * filepath, const char * linea) {
     FIL file;
@@ -541,6 +791,15 @@ bool escribir_linea_csv(const char * filepath, const char * linea) {
     return (res == FR_OK && written == strlen(linea));
 }
 
+/**
+ * @brief Guarda una medición cruda de PM en la microSD con timestamp y estructura de carpetas.
+ *
+ * Crea la ruta `/YYYY/MM/DD/RAW.csv`, escribe encabezado si el archivo es nuevo
+ * y registra los datos en formato CSV.
+ *
+ * @param data Puntero a la estructura `ParticulateData` con los datos crudos.
+ * @return `true` si la operación fue exitosa.
+ */
 bool log_data_to_sd(const ParticulateData * data) {
     if (!sd_mounted) {
         if (!data_logger_init())
@@ -580,6 +839,15 @@ bool log_data_to_sd(const ParticulateData * data) {
     return true;
 }
 
+/**
+ * @brief Escribe una medición formateada como línea CSV en una ruta generada automáticamente.
+ *
+ * Utiliza `build_csv_filepath_from_datetime()` para generar el nombre del archivo.
+ *
+ * @param data Estructura con los datos a registrar.
+ * @return `true` si la línea fue escrita correctamente.
+ */
+
 bool data_logger_write_csv_line(const ParticulateData * data) {
     char line[CSV_LINE_BUFFER_SIZE];
 
@@ -614,6 +882,15 @@ bool data_logger_write_csv_line(const ParticulateData * data) {
     return true;
 }
 
+/**
+ * @brief Almacena una medición cruda de un sensor, incluyendo metadatos y encabezado del archivo.
+ *
+ * Crea la carpeta `/YYYY/MM/DD` si no existe y un archivo individual por sensor y fecha
+ * (`RAW_<ID>_YYYYMMDD.CSV`). Agrega encabezado detallado con información del sensor.
+ *
+ * @param data Puntero a la estructura `ParticulateData` con los datos medidos.
+ * @return `true` si la línea fue escrita exitosamente.
+ */
 bool data_logger_store_raw(const ParticulateData * data) {
     if (!sd_mounted) {
         if (!data_logger_init())
@@ -691,6 +968,16 @@ bool data_logger_store_raw(const ParticulateData * data) {
     return ok;
 }
 
+/**
+ * @brief Construye una cadena con formato de timestamp ISO8601 a partir de una estructura de datos.
+ *
+ * Formato: `YYYY-MM-DDTHH:MM:SSZ`
+ *
+ * @param buffer Buffer de salida para el timestamp.
+ * @param len    Longitud máxima del buffer.
+ * @param data   Datos con la fecha y hora a convertir.
+ */
+
 void build_iso8601_timestamp(char * buffer, size_t len, const ParticulateData * data) {
     snprintf(buffer, len, "%04u-%02u-%02uT%02u:%02u:%02uZ", data->year, data->month, data->day,
              data->hour, data->min, data->sec);
@@ -717,8 +1004,12 @@ float * get_avg1h_buffer(void) {
 float * get_avg24h_buffer(void) {
     return daily_avgs;
 }
-int get_hourly_index(void) { return hourly_index; }
-int get_daily_index(void) { return daily_index; }
+int get_hourly_index(void) {
+    return hourly_index;
+}
+int get_daily_index(void) {
+    return daily_index;
+}
 #endif
 
 /* === End of documentation ==================================================================== */

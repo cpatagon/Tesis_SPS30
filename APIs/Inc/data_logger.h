@@ -1,16 +1,28 @@
 /**
  * @file data_logger.h
- * @brief API para registrar datos de sensores SPS30 en microSD en formato CSV.
+ * @brief API para registrar y organizar datos de material particulado (PM) en microSD usando
+ * estructura temporal.
  *
- * Este módulo permite almacenar datos crudos y promedios de concentraciones de material particulado
- * (PM1.0, PM2.5, PM4.0 y PM10) así como temperatura y humedad, en una tarjeta microSD usando
- * formato CSV. Incluye funciones para gestionar buffers circulares y generar reportes promediados.
+ * Este módulo gestiona el almacenamiento eficiente y ordenado de datos de concentración de material
+ * particulado (PM1.0, PM2.5, PM4.0 y PM10), temperatura y humedad en una tarjeta microSD, usando
+ * formato CSV y rutas estructuradas por fecha (/YYYY/MM/DD/).
+ *
+ * Incluye:
+ * - Registro de mediciones crudas y estadísticas promediadas (10 min, 1 h, 24 h).
+ * - Gestión de buffers circulares y ventanas temporales sincronizadas con el reloj RTC.
+ * - Cálculo automático de estadísticas (media, mínimo, máximo, desviación estándar).
+ * - Formateo y escritura de líneas CSV con timestamp.
+ * - Control automático de ciclos y directorios para promedios acumulados.
+ *
+ * Este módulo está diseñado para operar en sistemas embebidos STM32 sin RTOS,
+ * utilizando periféricos como UART, RTC y microSD vía FATFS.
  *
  * @author Luis Gómez
  * @date 10 May 2025
  * @copyright (C) 2023 Luis Gómez, CESE - FIUBA
  * @license GNU General Public License v3.0 <http://www.gnu.org/licenses/>
  */
+
 #ifndef INC_DATA_LOGGER_H_
 #define INC_DATA_LOGGER_H_
 /** @file
@@ -58,7 +70,7 @@ extern "C" {
 // Nuevas constantes basadas en tiempo real
 #define MAX_SAMPLES_PER_10MIN 60 /**< Muestras de 10 s en 10 minutos */
 #define AVG10_PER_HOUR        6  /**< Cantidad de ventanas de 10 min en 1 hora */
-#define AVG1H_PER_DAY        24  /**< Cantidad de promedios horarios en 24 h */
+#define AVG1H_PER_DAY         24 /**< Cantidad de promedios horarios en 24 h */
 
 /* === Public data type declarations
  * =========================================================== */
@@ -105,9 +117,9 @@ typedef struct {
  * @brief Ventana temporal de muestras sincronizadas con RTC
  */
 typedef struct {
-    ds3231_time_t start_time;                   /**< Inicio de la ventana */
-    float samples[MAX_SAMPLES_PER_10MIN];       /**< Datos de PM2.5 */
-    uint16_t count;                             /**< Cantidad de muestras */
+    ds3231_time_t start_time;             /**< Inicio de la ventana */
+    float samples[MAX_SAMPLES_PER_10MIN]; /**< Datos de PM2.5 */
+    uint16_t count;                       /**< Cantidad de muestras */
 } TimeWindow;
 
 /**
@@ -227,6 +239,55 @@ bool log_data_to_sd(const ParticulateData * data);
 
 /** @brief Almacena mediciones sin procesar en microSD. */
 bool data_logger_store_raw(const ParticulateData * data);
+
+/**
+ * @brief Registra datos promediados cada 10 minutos en la microSD.
+ *
+ * Esta función escribe una línea en el archivo CSV correspondiente al promedio
+ * de PM2.5 cada 10 minutos. La ruta del archivo es generada automáticamente
+ * con base en la fecha y ubicación `/YYYY/MM/DD/AVG10.csv`.
+ *
+ * @param avg Puntero a la estructura `PMDataAveraged` que contiene los datos procesados.
+ */
+void log_avg10_data(const PMDataAveraged * avg);
+
+/**
+ * @brief Registra datos promediados por hora en la microSD.
+ *
+ * Escribe en el archivo `/YYYY/MM/DD/AVG60.csv` una línea con los datos estadísticos
+ * de concentración de PM2.5 para el intervalo horario correspondiente.
+ *
+ * @param avg Puntero a la estructura `PMDataAveraged` con los datos promedio horarios.
+ */
+void log_avg1h_data(const PMDataAveraged * avg);
+
+/**
+ * @brief Registra datos promediados cada 24 horas en la microSD.
+ *
+ * Esta función escribe una línea en `/YYYY/MM/DD/AVG24.csv` con los datos agregados
+ * de PM2.5 diarios. El formato del CSV incluye fecha, promedio, mínimo, máximo,
+ * desviación estándar y cantidad de datos válidos.
+ *
+ * @param avg Puntero a la estructura `PMDataAveraged` con los datos diarios.
+ */
+void log_avg24h_data(const PMDataAveraged * avg);
+
+/**
+ * @brief Incrementa el estado interno del ciclo de almacenamiento de promedios.
+ *
+ * Esta función debe ser llamada después de almacenar un promedio de 10 minutos,
+ * y permite que el sistema lleve control sobre los acumuladores horarios y diarios.
+ */
+void data_logger_increment_cycle(void);
+
+/**
+ * @brief Verifica si corresponde generar promedios horarios o diarios y los guarda si es necesario.
+ *
+ * Esta función compara la hora actual (obtenida del RTC) con los timestamps de inicio de los ciclos
+ * horarios y diarios, y decide si corresponde consolidar y guardar dichos promedios. Llama
+ * internamente a `log_avg1h_data()` o `log_avg24h_data()` si corresponde.
+ */
+void data_logger_check_cycle_averages(void);
 
 /* === End of documentation
  * ==================================================================== */
