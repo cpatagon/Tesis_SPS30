@@ -1,6 +1,0 @@
-uart.c:79:6:uart_print	2
-uart.c:98:6:uart_vector_print	3
-uart.c:114:6:uart_send_command	1
-uart.c:119:6:uart_receive_async	1
-uart.c:123:6:uart_send_receive	1
-uart.c:129:6:probar_spi_sd	1

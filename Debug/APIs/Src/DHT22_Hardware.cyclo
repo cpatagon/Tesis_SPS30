@@ -1,6 +1,0 @@
-DHT22_Hardware.c:68:6:DHT22_InitHardware	10
-DHT22_Hardware.c:105:6:DHT22_SetPinOutput	1
-DHT22_Hardware.c:122:6:DHT22_SetPinInput	1
-DHT22_Hardware.c:141:6:DHT22_StartSignal	1
-DHT22_Hardware.c:160:9:DHT22_ReadByte	2
-DHT22_Hardware.c:180:9:DHT22_ReadBit	5

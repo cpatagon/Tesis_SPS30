@@ -1,7 +1,0 @@
-ParticulateDataAnalyzer.c:137:6:maskIsDataTrue	3
-ParticulateDataAnalyzer.c:151:6:isArrayEmpty	3
-ParticulateDataAnalyzer.c:166:8:sqrt_binary_search	4
-ParticulateDataAnalyzer.c:201:7:calculateAverage	5
-ParticulateDataAnalyzer.c:234:7:findMaxValue	5
-ParticulateDataAnalyzer.c:262:7:findMinValue	5
-ParticulateDataAnalyzer.c:291:7:calculateStandardDeviation	6
