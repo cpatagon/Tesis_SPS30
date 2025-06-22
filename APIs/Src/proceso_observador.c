@@ -1,10 +1,21 @@
 /*
- * Nombre del archivo: proceso_observador.c
- * Descripción: Implementación del proceso observador para sensores SPS30
- * Autor: lgomez
- * Creado en: 04-05-2025
- * Derechos de Autor: (C) 2023 [Tu nombre o institución]
- * Licencia: GNU General Public License v3.0
+ * @file proceso_observador.c
+ * @brief Módulo observador para lectura, validación y registro de mediciones SPS30
+ *
+ * Este módulo implementa la lógica de adquisición y verificación de datos de sensores de
+ * material particulado (SPS30), incluyendo:
+ * - Inicio/parada de medición,
+ * - Validación de concentraciones,
+ * - Registro en microSD (formato RAW),
+ * - Acumulación para estadísticas y promedios temporales (cada 10min, 1h, 24h),
+ * - Integración con sensores de temperatura/humedad (DHT22).
+ *
+ * Forma parte del sistema embebido de medición de MP2.5 para tesis FIUBA-UBA.
+ *
+ * @author Luis Gómez
+ * @date 04-05-2025
+ * @copyright (C) 2023 Luis Gómez
+ * @license GNU General Public License v3.0
  *
  * SPDX-License-Identifier: GPL-3.0-only
  */
@@ -28,9 +39,47 @@ static int sensores_recibidos = 0;
 /* === Definición de funciones
  * ============================================================= */
 
+/**
+ * @brief Realiza una lectura completa desde un sensor SPS30 y registra los datos si son válidos.
+ *
+ * Esta función ejecuta el ciclo de medición para un sensor de material particulado SPS30:
+ * inicia la medición, espera un tiempo, lee los datos y la detiene. Verifica si las
+ * concentraciones son válidas (dentro de un rango aceptable) y si es así:
+ * - Obtiene el timestamp desde el RTC.
+ * - Formatea e imprime los datos por UART.
+ * - Los guarda en un archivo CSV (raw).
+ * - Alimenta el sistema de análisis promedio con `registrar_lectura_pm25`.
+ *
+ * En caso de fallo, intenta un número limitado de reintentos.
+ *
+ * @param sensor Puntero a estructura del sensor SPS30.
+ * @param sensor_id Identificador del sensor (1, 2 o 3).
+ * @param datetime_str Cadena de fecha/hora ya formateada (usada para mensajes UART).
+ * @param temp_amb Temperatura ambiente medida (°C).
+ * @param hum_amb Humedad relativa ambiente medida (%).
+ * @param temp_cam Temperatura interna o de cámara medida (°C).
+ * @param hum_cam Humedad relativa interna o de cámara (%).
+ * @param rtc_error_msg Mensaje a imprimir si falla la lectura del RTC.
+ * @return `true` si los datos fueron válidos y se almacenaron correctamente, `false` en caso
+ * contrario.
+ */
+
 static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str,
                                     float temp_amb, float hum_amb, float temp_cam, float hum_cam,
                                     const char * rtc_error_msg);
+
+/**
+ * @brief Ejecuta un ciclo de observación para el sensor SPS30 con temperatura y humedad ambiente.
+ *
+ * Esta función obtiene el timestamp actual del RTC y lo pasa al proceso base.
+ * Internamente llama a `proceso_observador_with_time()`.
+ *
+ * @param sensor Puntero a estructura del sensor SPS30.
+ * @param sensor_id Identificador del sensor (1, 2 o 3).
+ * @param temp_amb Temperatura ambiente medida (°C).
+ * @param hum_amb Humedad relativa ambiente medida (%).
+ * @return `true` si se registraron correctamente los datos, `false` en caso de error.
+ */
 
 bool proceso_observador(SPS30 * sensor, uint8_t sensor_id, float temp_amb, float hum_amb) {
     char datetime_buffer[32];
@@ -38,6 +87,21 @@ bool proceso_observador(SPS30 * sensor, uint8_t sensor_id, float temp_amb, float
 
     return proceso_observador_with_time(sensor, sensor_id, datetime_buffer, temp_amb, hum_amb);
 }
+
+/**
+ * @brief Realiza un ciclo de observación con timestamp externo y lectura de sensores DHT.
+ *
+ * Esta función permite ejecutar el ciclo de observación con un timestamp externo ya formateado
+ * y mide la temperatura y humedad de la cámara correspondiente (según el ID del sensor).
+ * Luego, llama a `proceso_observador_base()`.
+ *
+ * @param sensor Puntero a estructura del sensor SPS30.
+ * @param sensor_id ID del sensor (1 a 3).
+ * @param datetime_str Timestamp ya formateado como cadena.
+ * @param temp_amb Temperatura ambiente (°C).
+ * @param hum_amb Humedad ambiente (%).
+ * @return `true` si se logró registrar una lectura válida, `false` si falló.
+ */
 
 bool proceso_observador_with_time(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str,
                                   float temp_amb, float hum_amb) {
@@ -54,11 +118,48 @@ bool proceso_observador_with_time(SPS30 * sensor, uint8_t sensor_id, const char 
                                    hum_cam, "Error leyendo hora del RTC\r\n");
 }
 
+/**
+ * @brief Ejecuta un ciclo de observación con 3 variables PM y 2 de temperatura/humedad.
+ *
+ * Esta función es un envoltorio de conveniencia sobre `proceso_observador_base` que utiliza
+ * un mensaje de error predefinido si falla la lectura del reloj RTC. Se utiliza en contextos
+ * donde se realiza un monitoreo con un sensor SPS30, temperatura y humedad ambiente y de cámara.
+ *
+ * @param sensor Puntero al objeto `SPS30` correspondiente al sensor.
+ * @param sensor_id Identificador numérico del sensor (1 a 3).
+ * @param datetime_str Cadena de texto con la fecha y hora actual (formato legible).
+ * @param temp_amb Temperatura ambiente en grados Celsius.
+ * @param hum_amb Humedad relativa ambiente en porcentaje.
+ * @param temp_cam Temperatura dentro del gabinete/cámara en grados Celsius.
+ * @param hum_cam Humedad relativa dentro de la cámara en porcentaje.
+ *
+ * @return true si la lectura fue válida y se almacenó correctamente, false si falló.
+ */
+
 bool proceso_observador_3PM_2TH(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str,
                                 float temp_amb, float hum_amb, float temp_cam, float hum_cam) {
     return proceso_observador_base(sensor, sensor_id, datetime_str, temp_amb, hum_amb, temp_cam,
-                                   hum_cam, "⚠️ Error leyendo hora del RTC\r\n");
+                                   hum_cam, "Error leyendo hora del RTC\r\n");
 }
+
+/**
+ * @brief Realiza un ciclo de medición completo con un sensor SPS30.
+ *
+ * Esta función ejecuta un intento de medición del sensor SPS30, valida los datos,
+ * los imprime por UART, los registra en microSD y alimenta el proceso de cálculo de promedios.
+ * En caso de lectura inválida, reintenta hasta `NUM_REINT` veces.
+ *
+ * @param sensor Puntero al objeto `SPS30` correspondiente al sensor a leer.
+ * @param sensor_id Identificador del sensor (1 a 3).
+ * @param datetime_str Cadena con timestamp formateado para impresión.
+ * @param temp_amb Temperatura ambiente medida (°C).
+ * @param hum_amb Humedad relativa ambiente (%).
+ * @param temp_cam Temperatura interna del gabinete o cámara (°C).
+ * @param hum_cam Humedad relativa dentro de la cámara (%).
+ * @param rtc_error_msg Mensaje de error personalizado si falla la lectura del RTC.
+ *
+ * @return true si la medición fue válida y procesada correctamente, false en caso contrario.
+ */
 
 static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str,
                                     float temp_amb, float hum_amb, float temp_cam, float hum_cam,
@@ -67,7 +168,7 @@ static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const cha
 
     while (reintentos--) {
         sensor->start_measurement(sensor);
-        HAL_Delay(HAL_DELAY_SIGUIENTE_MEDICION);
+        HAL_Delay(DELAY_MS_SPS30_LECTURA);
 
         ConcentracionesPM pm = sensor->get_concentrations(sensor);
         sensor->stop_measurement(sensor);
@@ -120,20 +221,44 @@ static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const cha
     return false;
 }
 
+/**
+ * @brief Registra una lectura de PM2.5 de un sensor SPS30 y almacena su contexto ambiental.
+ *
+ * Esta función se ejecuta cada vez que un sensor SPS30 entrega una nueva medición de PM2.5.
+ * Además de almacenar el dato en los buffers internos, captura simultáneamente la temperatura
+ * y humedad usando el sensor DHT22.
+ *
+ * Cuando se han recibido datos de los 3 sensores, se calcula un promedio de PM2.5 y
+ * se invoca `proceso_analisis_periodico()` para alimentar los buffers temporales.
+ *
+ * @param sensor_id ID del sensor SPS30 (1 a 3)
+ * @param pm25 Valor medido de PM2.5 (µg/m³)
+ */
+
 void registrar_lectura_pm25(uint8_t sensor_id, float pm25) {
     if (sensor_id >= 1 && sensor_id <= 3) {
+        float temp = -99.9f;
+        float hum = -99.9f;
+
+        // 🆕 Llamada para almacenar medición individual
+        ConcentracionesPM valores = {.pm2_5 = pm25}; // solo estamos usando PM2.5 aquí
+
+        if (!DHT22_ReadSimple(&dhtA, &temp, &hum)) {
+            uart_print("[WARN] No se pudo leer DHT22 para sensor ID %d\r\n", sensor_id);
+        }
+
+        data_logger_store_measurement(sensor_id, valores, temp, hum);
+
         pm25_sensores[sensor_id - 1] = pm25;
         sensores_recibidos++;
 
         if (sensores_recibidos == 3) {
-            // Ciclo completo
-            float promedio_ciclo =
-                (pm25_sensores[0] + pm25_sensores[1] + pm25_sensores[2]) / 3.0f;
+            float promedio_ciclo = (pm25_sensores[0] + pm25_sensores[1] + pm25_sensores[2]) / 3.0f;
 
             data_logger_increment_cycle();
-            proceso_analisis_periodico(promedio_ciclo); // ✅ alimenta buffers
+            proceso_analisis_periodico(promedio_ciclo);
 
-            sensores_recibidos = 0; // reiniciar para próximo ciclo
+            sensores_recibidos = 0;
         }
     }
 }

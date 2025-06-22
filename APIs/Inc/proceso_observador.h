@@ -1,23 +1,28 @@
-/*
- * Nombre del archivo: proceso_observador.h
- * Descripción: Módulo para adquisición de datos de sensores SPS30
- * Autor: lgomez
- * Creado en: 04-05-2025
- * Derechos de Autor: (C) 2023 Luis Gómez CESE FiUBA
- * Licencia: GNU General Public License v3.0
+/**
+ * @file proceso_observador.h
+ * @brief API del módulo observador para adquisición, validación y registro de datos de sensores
+ * SPS30 y DHT22.
  *
- * Este programa es software libre: puedes redistribuirlo y/o modificarlo
- * bajo los términos de la Licencia Pública General GNU publicada por
- * la Free Software Foundation, ya sea la versión 3 de la Licencia, o
- * (a tu elección) cualquier versión posterior.
+ * Este módulo coordina la adquisición de datos ambientales en tiempo real, utilizando sensores
+ * ópticos SPS30 (PM1.0, PM2.5, PM4.0, PM10) y sensores de temperatura/humedad DHT22.
  *
- * Este programa se distribuye con la esperanza de que sea útil,
- * pero SIN NINGUNA GARANTÍA; sin siquiera la garantía implícita
- * de COMERCIABILIDAD o APTITUD PARA UN PROPÓSITO PARTICULAR. Ver la
- * Licencia Pública General GNU para más detalles.
+ * Las funciones disponibles permiten:
+ * - Ejecutar ciclos de medición individuales (con o sin timestamp externo),
+ * - Validar lecturas y almacenar registros crudos (raw) en microSD (CSV),
+ * - Imprimir salidas por UART (debug/log),
+ * - Alimentar los buffers circulares para promedios periódicos (10min, 1h, 24h).
  *
- * Deberías haber recibido una copia de la Licencia Pública General GNU
- * junto con este programa. Si no es así, visita <http://www.gnu.org/licenses/>.
+ * Parte del sistema embebido de medición de MP2.5 desarrollado como tesis en FIUBA.
+ *
+ * @author Luis Gómez
+ * @date 04-05-2025
+ * @copyright (C) 2023 Luis Gómez, CESE - FIUBA
+ * @license GNU General Public License v3.0
+ *
+ * @see proceso_observador.c
+ * @see data_logger.h
+ * @see sps30_comm.h
+ * @see DHT22.h
  *
  * SPDX-License-Identifier: GPL-3.0-only
  */
@@ -29,74 +34,87 @@
  ** @brief Declaraciones públicas del proceso observador para SPS30
  **/
 
-/* === Inclusión de archivos
- * ================================================================ */
 #include "sps30_comm.h"
 #include "time_rtc.h"
 #include "uart.h"
 #include <stdbool.h>
 
-/* === Cabecera C++
- * ======================================================================== */
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* === Public macros definitions
- * =============================================================== */
-
-// Formato para imprimir los datos con timestamp
+/* === Macros públicas === */
 #define MSG_PM_FORMAT_WITH_TIME                                                                    \
     "[%s] SPS30 ID:%d | PM1.0: %.2f | PM2.5: %.2f | PM4.0: %.2f | PM10: %.2f | "                   \
     "ug/m3\n"
 
-// Mensajes de error actualizados
-#define MSG_ERROR_REINT "**ERROR[SPS30_RETRY] Intento fallido, reintentando...\n"
-#define MSG_ERROR_FALLO "**ERROR[SPS30_FAIL][%s] Sensor ID:%d sin respuesta tras 3 intentos\n"
+#define MSG_ERROR_REINT             "**ERROR[SPS30_RETRY] Intento fallido, reintentando...\n"
+#define MSG_ERROR_FALLO             "**ERROR[SPS30_FAIL][%s] Sensor ID:%d sin respuesta tras 3 intentos\n"
 
-// Tamaños de buffer
 #define BUFFER_SIZE_MSG_PM_FORMAT   256
 #define BUFFER_SIZE_MSG_ERROR_FALLO 96
 
-// Parámetros de configuración
-#define NUM_REINT                    3 // Número máximo de intentos de lectura del sensor
-#define CONC_MIN_PM                  0.0f // Valor mínimo considerado válido para concentraciones de PM
-#define HAL_DELAY_SIGUIENTE_MEDICION 5000 // Delay entre inicio de medición y lectura en ms
+#define NUM_REINT                   3
+#define CONC_MIN_PM                 0.0f
+#define CONC_MAX_PM                 1000.0f
+#define DELAY_MS_SPS30_LECTURA      5000
 
-#define CONC_MAX_PM                  1000.0f // umbral máximo por seguridad
+/* === Declaraciones de funciones públicas === */
 
-/* === Declaraciones de funciones públicas
- * ================================================ */
 /**
- * @brief Ejecuta una adquisición desde un sensor SPS30 e incluye timestamp
+ * @brief Ejecuta un ciclo de adquisición desde un sensor SPS30 usando fecha/hora interna.
  *
  * @param sensor Puntero al objeto SPS30
- * @param uart Puntero al objeto UART_Printing para salida de datos
- * @param sensor_id Número identificador del sensor (ej. 1, 2, 3)
- * @return true si la adquisición fue exitosa; false si falló tras reintentos
+ * @param sensor_id ID del sensor (1 a 3)
+ * @param temp_amb Temperatura ambiente (°C)
+ * @param hum_amb Humedad relativa ambiente (%)
+ * @return true si la adquisición fue exitosa, false si falló tras reintentos
  */
 bool proceso_observador(SPS30 * sensor, uint8_t sensor_id, float temp_amb, float hum_amb);
 
+/**
+ * @brief Ejecuta un ciclo de adquisición desde un sensor SPS30 con valores de 2 sensores DHT22.
+ *
+ * @param sensor Puntero al objeto SPS30
+ * @param sensor_id ID del sensor (1 a 3)
+ * @param datetime_str Cadena con timestamp formateado
+ * @param temp_amb Temperatura ambiente (°C)
+ * @param hum_amb Humedad relativa ambiente (%)
+ * @param temp_cam Temperatura de cámara (°C)
+ * @param hum_cam Humedad de cámara (%)
+ * @return true si la lectura fue válida y almacenada, false si falló
+ */
 bool proceso_observador_3PM_2TH(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str,
                                 float temp_amb, float hum_amb, float temp_cam, float hum_cam);
 
 /**
- * @brief Ejecuta una adquisición desde un sensor SPS30 y guarda los datos con
- * timestamp
+ * @brief Ejecuta un ciclo de adquisición SPS30 con timestamp externo.
  *
  * @param sensor Puntero al objeto SPS30
- * @param uart Puntero al objeto UART_Printing para salida de datos
- * @param sensor_id Número identificador del sensor (ej. 1, 2, 3)
- * @param datetime_str Cadena con la fecha y hora de la medición
- * @return true si la adquisición fue exitosa; false si falló tras reintentos
+ * @param sensor_id ID del sensor (1 a 3)
+ * @param datetime_str Timestamp formateado como cadena
+ * @param temp_amb Temperatura ambiente (°C)
+ * @param hum_amb Humedad relativa ambiente (%)
+ * @return true si la adquisición fue exitosa, false si falló
  */
 bool proceso_observador_with_time(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str,
                                   float temp_amb, float hum_amb);
 
+/**
+ * @brief Registra una nueva lectura de PM2.5, almacena el dato y actualiza buffers estadísticos.
+ *
+ * Esta función se invoca por cada sensor SPS30 tras una medición válida.
+ * También captura temperatura y humedad del entorno para contexto ambiental.
+ *
+ * Cuando se reciben 3 lecturas (una por sensor), se calcula el promedio de PM2.5
+ * y se invoca `proceso_analisis_periodico()` para actualizar los buffers de 10min, 1h y 24h.
+ *
+ * @param sensor_id ID del sensor (1 a 3)
+ * @param pm25 Concentración de PM2.5 en µg/m³
+ */
+
 void registrar_lectura_pm25(uint8_t sensor_id, float pm25);
 
-/* === Fin de cabecera C++
- * ================================================================ */
 #ifdef __cplusplus
 }
 #endif

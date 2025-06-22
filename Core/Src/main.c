@@ -215,6 +215,8 @@ int main(void) {
             uart_print("Error leyendo DHT22 cámara\n");
         }
 
+        data_logger_print_summary();
+
         /* === Timestamp y encabezado de ciclo ========================================= */
         char datetime_buffer[32];
         char msg_buffer[128];
