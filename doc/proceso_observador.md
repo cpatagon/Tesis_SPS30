@@ -1,97 +1,118 @@
-Perfecto, a continuación te presento la **documentación en formato Markdown** para el módulo `proceso_observador`, siguiendo el mismo estilo que el ejemplo de `data_logger`:
+¡Perfecto! Basándome en tu estilo de documentación en Markdown y el contenido de `proceso_observador.h`, te dejo una propuesta clara, estructurada y lista para integrar como archivo `proceso_observador.md` o sección en tu documentación principal:
 
 ---
 
-# Módulo `proceso_observador` - Ciclo de Adquisición y Registro SPS30 (PM2.5)
+# 📡 Módulo `proceso_observador` — Adquisición y Validación de Datos PM2.5
 
 ## 📌 Descripción General
 
-El módulo `proceso_observador` implementa la lógica de adquisición, validación y registro de mediciones de material particulado (PM1.0 a PM10) usando sensores ópticos **SPS30**, junto con sensores de **temperatura y humedad DHT22**. Este módulo se integra con el sistema de almacenamiento en microSD y los buffers de análisis estadístico.
+El módulo `proceso_observador` implementa la lógica de adquisición y validación de datos provenientes de sensores de material particulado **SPS30** y sensores de **temperatura/humedad DHT22**.
 
-Forma parte del sistema embebido para monitoreo ambiental urbano en el contexto del proyecto de tesis en FIUBA.
+Es parte del sistema embebido desarrollado para una tesis en FIUBA, con el objetivo de monitorear concentraciones de **PM1.0, PM2.5, PM4.0 y PM10** en entornos urbanos. Permite:
 
----
-
-## 🧭 Funcionalidades Principales
-
-* Inicia y detiene mediciones de los sensores SPS30.
-* Valida los datos leídos (rango físico plausible).
-* Obtiene `timestamp` desde RTC (DS3231).
-* Registra datos crudos en microSD (formato CSV).
-* Imprime mediciones por UART para depuración.
-* Integra datos ambientales (T y HR) mediante DHT22.
-* Alimenta el sistema de promedios temporales: 10min, 1h, 24h.
+* Obtener datos confiables de concentración de partículas,
+* Validar su rango físico,
+* Asociarlos a condiciones ambientales,
+* Guardarlos en microSD (formato `.csv`),
+* Imprimir por UART,
+* Acumular y promediar los datos cada 10 min, 1 h, 24 h.
 
 ---
 
-## 🧩 Macros relevantes
+## 🧭 Funcionalidades
 
-| Macro                        | Descripción                                                    |
-| ---------------------------- | -------------------------------------------------------------- |
-| `NUM_REINT`                  | Reintentos de lectura por sensor en caso de error              |
-| `CONC_MIN_PM`, `CONC_MAX_PM` | Rango aceptable para las concentraciones de partículas (µg/m³) |
-| `DELAY_MS_SPS30_LECTURA`     | Tiempo de espera tras iniciar la medición (en ms)              |
-| `MSG_PM_FORMAT_WITH_TIME`    | Formato de impresión para datos UART                           |
+* Ciclo completo de adquisición SPS30 (inicio → espera → lectura → validación).
+* Sincronización con RTC (DS3231).
+* Registro estructurado de mediciones crudas.
+* Captura de contexto ambiental: temperatura y humedad con DHT22.
+* Acumulación de lecturas en buffer para cálculo estadístico periódico.
+* Reintentos automáticos ante fallos.
 
 ---
 
-## 🔁 Flujo General del Módulo
+## 🧩 Flujo de Ejecución
 
 ```mermaid
 graph TD
-    S1["SPS30 start_measurement()"]
+    S1["SPS30: start_measurement()"]
     D1["Delay 5s"]
-    S2["SPS30 get_concentrations()"]
-    S3["Validar datos"]
-    RTC["Leer timestamp DS3231"]
-    SD1["Guardar datos crudos"]
-    B1["registrar_lectura_pm25()"]
-    A1["Acumular en buffers"]
-    A2["Calcular promedio si hay 3 sensores"]
-    SD2["Guardar promedio si corresponde"]
-    U1["Imprimir por UART"]
+    S2["SPS30: get_concentrations()"]
+    V1["¿Datos válidos?"]
+    R1["Leer timestamp (DS3231)"]
+    SD1["Guardar en CSV (RAW)"]
+    L1["registrar_lectura_pm25()"]
+    B1["Acumular en buffer"]
+    B2["¿3 sensores ya leídos?"]
+    B3["Calcular promedio y guardar AVG"]
+    UART["Imprimir por UART"]
+    FAIL["Reintento o Error final"]
 
-    S1 --> D1 --> S2 --> S3
-    S3 -->|válido| RTC --> SD1 --> B1 --> A1 --> A2 --> SD2
-    S3 -->|válido| U1
-
-
----
-
-## 📦 Estructura de Funciones
-
-| Función                        | Descripción                                                       |
-| ------------------------------ | ----------------------------------------------------------------- |
-| `proceso_observador`           | Ejecuta un ciclo de medición con timestamp interno del RTC        |
-| `proceso_observador_with_time` | Usa un timestamp externo y mide T/HR de la cámara                 |
-| `proceso_observador_3PM_2TH`   | Versión explícita con T/HR ambiente y de cámara                   |
-| `registrar_lectura_pm25`       | Almacena una medición individual de PM2.5 y asocia T/HR vía DHT22 |
-
----
-
-## 🧪 Validación
-
-* Una medición solo se acepta si al menos una concentración de PM (1.0, 2.5, 4.0, 10.0) está entre `CONC_MIN_PM` y `CONC_MAX_PM`.
-* Si falla la lectura del RTC, se notifica vía UART y se aborta el registro.
-* Si no hay respuesta del sensor tras `NUM_REINT` intentos, se descarta.
-
----
-
-## 📝 Ejemplo de Salida UART
-
+    S1 --> D1 --> S2 --> V1
+    V1 -- sí --> R1 --> SD1 --> L1 --> B1 --> B2
+    B2 -- sí --> B3
+    R1 --> UART
+    V1 -- no --> FAIL
 ```
-[2025-06-21T14:10:30] SPS30 ID:2 | PM1.0: 12.33 | PM2.5: 15.22 | PM4.0: 16.55 | PM10: 19.88 | ug/m3
+
+---
+
+## 🧪 Validaciones y Reintentos
+
+* Cada lectura de PM se valida contra umbrales: `0.0 ≤ PM ≤ 1000.0 µg/m³`.
+* Se permiten hasta `3 reintentos` por sensor si la lectura es inválida.
+* Si el RTC no responde, se notifica por UART.
+
+---
+
+## 📦 Estructuras y Variables
+
+| Elemento                 | Tipo / Rol                               |
+| ------------------------ | ---------------------------------------- |
+| `SPS30`                  | Objeto sensor de partículas              |
+| `DHT22`                  | Sensor ambiental auxiliar                |
+| `ParticulateData`        | Estructura con PMs + T° y HR + timestamp |
+| `registrar_lectura_pm25` | Agrega dato de PM2.5 a buffer circular   |
+| `proceso_observador_*`   | Funciones que gestionan adquisición      |
+
+---
+
+## 🔧 Parámetros Configurables
+
+| Macro                        | Valor       | Descripción                           |
+| ---------------------------- | ----------- | ------------------------------------- |
+| `NUM_REINT`                  | `3`         | Reintentos ante falla                 |
+| `CONC_MIN_PM`, `CONC_MAX_PM` | `0`, `1000` | Rango aceptable de PMs                |
+| `DELAY_MS_SPS30_LECTURA`     | `5000`      | Delay entre inicio y lectura de SPS30 |
+
+---
+
+## 📚 Funciones Públicas
+
+| Función                          | Descripción breve                                       |
+| -------------------------------- | ------------------------------------------------------- |
+| `proceso_observador()`           | Ejecuta adquisición SPS30 usando timestamp actual (RTC) |
+| `proceso_observador_with_time()` | Igual que anterior pero usando timestamp externo        |
+| `proceso_observador_3PM_2TH()`   | Usa timestamp externo y mediciones de 2 sensores DHT22  |
+| `registrar_lectura_pm25()`       | Registra PM2.5 individual y actualiza buffers           |
+
+---
+
+## 📜 Ejemplo de uso básico
+
+```c
+SPS30 sensor;
+sps30_init(&sensor, ...); // UARTx, funciones
+if (proceso_observador(&sensor, 1, 22.3f, 55.1f)) {
+    uart_print("Medición SPS30 ID 1 registrada correctamente.\n");
+}
 ```
 
 ---
 
 ## ✍️ Autoría
 
-* **Autor:** Luis Gómez
-* **Fecha de creación:** 04 de mayo de 2025
-* **Licencia:** GNU GPLv3
-* **Institución:** CESE - FIUBA
+* **Autor**: Luis Gómez
+* **Fecha**: 04 de mayo de 2025
+* **Licencia**: [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)
 
 ---
-
-¿Te gustaría que lo guarde como `docs/proceso_observador.md` o lo integro directamente en tu repositorio? También puedo generar automáticamente un índice para todos los módulos.
