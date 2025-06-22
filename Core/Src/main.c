@@ -215,12 +215,19 @@ int main(void) {
             uart_print("Error leyendo DHT22 cámara\n");
         }
 
-        data_logger_print_summary();
+        /* =========Pruebas de Buffer ============*/
+
+        uart_print("Imprime Sumario\n");
+        data_logger_print_summary(); /* para borrar*/
+
+        uart_print("Imprime resumen\n");
+        data_logger_print_value(); /* para borrar*/
 
         /* === Timestamp y encabezado de ciclo ========================================= */
         char datetime_buffer[32];
         char msg_buffer[128];
         time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
+        time_rtc_ActualizarEstadoPorTiempo(); // <--- ACTUALIZA LA MÁQUINA DE ESTADOS
 
         snprintf(msg_buffer, sizeof(msg_buffer), "\n=== Ciclo de medicion #%lu: %s ===\n",
                  ++ciclo_contador, datetime_buffer);
@@ -236,7 +243,7 @@ int main(void) {
         if (ciclo_contador % 10U == 0U) {
             data_logger_print_summary();
 
-            float pm25_avg = data_logger_get_average_pm25(0U, 10U);
+            float pm25_avg = data_logger_get_average_pm25_id(0U, 10U);
             snprintf(msg_buffer, sizeof(msg_buffer),
                      "Promedio PM2.5 (ultimas 10 mediciones): %.2f ug/m3\n", pm25_avg);
             uart_print(msg_buffer);

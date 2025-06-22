@@ -35,6 +35,8 @@
 #include "rtc_config.h"
 #include "usart.h"
 #include "uart.h"
+#include "proceso_observador.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
@@ -48,6 +50,8 @@ extern UART_HandleTypeDef huart3;
 extern UART_HandleTypeDef huart1;
 
 RTC_Source active_rtc = RTC_SOURCE_INTERNAL; // Por defecto
+
+static uint8_t minuto_anterior = 255;
 
 /* === Función interna ============================================================= */
 
@@ -162,6 +166,29 @@ bool RTC_ReceiveTimeFromTerminal(UART_HandleTypeDef * huart) {
 
     uart_print(RTC_SUCCESS_MSG);
     return true;
+}
+
+/**
+ * @brief Verifica si hubo un cambio de minuto y actualiza el estado de adquisición en base al RTC.
+ */
+void time_rtc_ActualizarEstadoPorTiempo(void) {
+    ds3231_time_t dt;
+    if (!ds3231_get_datetime(&dt)) {
+        uart_print("[ERROR] No se pudo leer el RTC para actualizar el estado.\r\n");
+        return;
+    }
+
+    if (dt.min != minuto_anterior) {
+        minuto_anterior = dt.min;
+
+        if (dt.min % 10 == 0) {
+            proceso_observador_set_estado(ESTADO_CALCULANDO_10MIN);
+            uart_print("[ESTADO] Cambio a CALCULANDO_10MIN\r\n");
+        } else {
+            proceso_observador_set_estado(ESTADO_ALMACENANDO_10MIN);
+            uart_print("[ESTADO] Cambio a ALMACENANDO_10MIN\r\n");
+        }
+    }
 }
 
 /* === Wrappers de compatibilidad =================================================== */

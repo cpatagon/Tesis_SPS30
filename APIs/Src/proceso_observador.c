@@ -36,8 +36,14 @@
 static float pm25_sensores[3];
 static int sensores_recibidos = 0;
 
+Estado_Adquisicion estado_adquisicion = ESTADO_REPOSO;
+
 /* === Definición de funciones
  * ============================================================= */
+
+void proceso_observador_set_estado(Estado_Adquisicion nuevo_estado) {
+    estado_adquisicion = nuevo_estado;
+}
 
 /**
  * @brief Realiza una lectura completa desde un sensor SPS30 y registra los datos si son válidos.
@@ -146,8 +152,8 @@ bool proceso_observador_3PM_2TH(SPS30 * sensor, uint8_t sensor_id, const char * 
  * @brief Realiza un ciclo de medición completo con un sensor SPS30.
  *
  * Esta función ejecuta un intento de medición del sensor SPS30, valida los datos,
- * los imprime por UART, los registra en microSD y alimenta el proceso de cálculo de promedios.
- * En caso de lectura inválida, reintenta hasta `NUM_REINT` veces.
+ * los imprime por UART, los registra en microSD y ejecuta la lógica definida
+ * por la máquina de estados del proceso observador.
  *
  * @param sensor Puntero al objeto `SPS30` correspondiente al sensor a leer.
  * @param sensor_id Identificador del sensor (1 a 3).
@@ -160,7 +166,6 @@ bool proceso_observador_3PM_2TH(SPS30 * sensor, uint8_t sensor_id, const char * 
  *
  * @return true si la medición fue válida y procesada correctamente, false en caso contrario.
  */
-
 static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str,
                                     float temp_amb, float hum_amb, float temp_cam, float hum_cam,
                                     const char * rtc_error_msg) {
@@ -173,22 +178,25 @@ static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const cha
         ConcentracionesPM pm = sensor->get_concentrations(sensor);
         sensor->stop_measurement(sensor);
 
-        if ((pm.pm1_0 > CONC_MIN_PM && pm.pm1_0 < CONC_MAX_PM) ||
-            (pm.pm2_5 > CONC_MIN_PM && pm.pm2_5 < CONC_MAX_PM) ||
-            (pm.pm4_0 > CONC_MIN_PM && pm.pm4_0 < CONC_MAX_PM) ||
-            (pm.pm10 > CONC_MIN_PM && pm.pm10 < CONC_MAX_PM)) {
+        bool pm_valido = (pm.pm1_0 > CONC_MIN_PM && pm.pm1_0 < CONC_MAX_PM) ||
+                         (pm.pm2_5 > CONC_MIN_PM && pm.pm2_5 < CONC_MAX_PM) ||
+                         (pm.pm4_0 > CONC_MIN_PM && pm.pm4_0 < CONC_MAX_PM) ||
+                         (pm.pm10 > CONC_MIN_PM && pm.pm10 < CONC_MAX_PM);
 
+        if (pm_valido) {
             ds3231_time_t dt;
             if (!ds3231_get_datetime(&dt)) {
                 uart_print("%s", rtc_error_msg);
                 return false;
             }
 
+            // 📤 Imprimir valores por UART
             char buffer[BUFFER_SIZE_MSG_PM_FORMAT];
             snprintf(buffer, sizeof(buffer), MSG_PM_FORMAT_WITH_TIME, datetime_str, sensor_id,
                      pm.pm1_0, pm.pm2_5, pm.pm4_0, pm.pm10);
             uart_print("%s", buffer);
 
+            // 📦 Preparar estructura de datos completa
             ParticulateData data = {
                 .sensor_id = sensor_id,
                 .pm1_0 = pm.pm1_0,
@@ -207,58 +215,46 @@ static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const cha
                 .sec = dt.sec,
             };
 
+            // 📝 Guardar en microSD como línea RAW
             data_logger_store_raw(&data);
-            registrar_lectura_pm25(sensor_id, pm.pm2_5);
+
+            // 🧠 Máquina de estados
+            switch (estado_adquisicion) {
+            case ESTADO_ALMACENANDO_10MIN:
+                data_logger_store_measurement(sensor_id, pm, temp_amb, hum_amb);
+                break;
+
+            case ESTADO_CALCULANDO_10MIN:
+                if (pm25_buffer_get_count(sensor_id) > 0) {
+                    EstadisticasPM stats;
+                    pm25_buffer_calcular_estadisticas(sensor_id, &stats);
+
+                    // POR IMPLEMENTAR
+                    //                       data_logger_store_avg_hour(sensor_id,
+                    //                       stats.pm2_5_promedio,
+                    //                                                  stats.n_datos_validos,
+                    //                                                  stats.min, stats.max,
+                    //                                                  stats.std);
+                    pm25_buffer_reset(sensor_id);
+                }
+                break;
+
+            default:
+                // ESTADO_REPOSO o no definido: sin acción
+                break;
+            }
+
+            // 🧮 Procesamiento posterior al ciclo
+
             return true;
         }
 
         uart_print("%s", MSG_ERROR_REINT);
     }
 
+    // 🚨 Reportar fallo tras todos los reintentos
     char error_msg[BUFFER_SIZE_MSG_ERROR_FALLO];
     snprintf(error_msg, sizeof(error_msg), MSG_ERROR_FALLO, datetime_str, sensor_id);
     uart_print("%s", error_msg);
     return false;
-}
-
-/**
- * @brief Registra una lectura de PM2.5 de un sensor SPS30 y almacena su contexto ambiental.
- *
- * Esta función se ejecuta cada vez que un sensor SPS30 entrega una nueva medición de PM2.5.
- * Además de almacenar el dato en los buffers internos, captura simultáneamente la temperatura
- * y humedad usando el sensor DHT22.
- *
- * Cuando se han recibido datos de los 3 sensores, se calcula un promedio de PM2.5 y
- * se invoca `proceso_analisis_periodico()` para alimentar los buffers temporales.
- *
- * @param sensor_id ID del sensor SPS30 (1 a 3)
- * @param pm25 Valor medido de PM2.5 (µg/m³)
- */
-
-void registrar_lectura_pm25(uint8_t sensor_id, float pm25) {
-    if (sensor_id >= 1 && sensor_id <= 3) {
-        float temp = -99.9f;
-        float hum = -99.9f;
-
-        // 🆕 Llamada para almacenar medición individual
-        ConcentracionesPM valores = {.pm2_5 = pm25}; // solo estamos usando PM2.5 aquí
-
-        if (!DHT22_ReadSimple(&dhtA, &temp, &hum)) {
-            uart_print("[WARN] No se pudo leer DHT22 para sensor ID %d\r\n", sensor_id);
-        }
-
-        data_logger_store_measurement(sensor_id, valores, temp, hum);
-
-        pm25_sensores[sensor_id - 1] = pm25;
-        sensores_recibidos++;
-
-        if (sensores_recibidos == 3) {
-            float promedio_ciclo = (pm25_sensores[0] + pm25_sensores[1] + pm25_sensores[2]) / 3.0f;
-
-            data_logger_increment_cycle();
-            proceso_analisis_periodico(promedio_ciclo);
-
-            sensores_recibidos = 0;
-        }
-    }
 }

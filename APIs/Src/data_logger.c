@@ -543,7 +543,7 @@ bool data_logger_store_measurement(uint8_t sensor_id, ConcentracionesPM valores,
  * @return Promedio calculado de PM2.5 o 0 si no hay datos válidos.
  */
 
-float data_logger_get_average_pm25(uint8_t sensor_id, uint32_t num_mediciones) {
+float data_logger_get_average_pm25_id(uint8_t sensor_id, uint32_t num_mediciones) {
     float suma = 0.0f;
     uint32_t contador = 0;
 
@@ -606,6 +606,43 @@ void data_logger_print_summary() {
                 buffer_alta_frecuencia.capacidad;
 
             MedicionMP * medicion = &buffer_alta_frecuencia.datos[indice];
+
+            snprintf(buffer, sizeof(buffer), "[%s] Sensor %d: PM2.5=%.2f ug/m3\n",
+                     medicion->timestamp, medicion->sensor_id, medicion->valores.pm2_5);
+
+            uart_print("%s", buffer);
+        }
+    }
+}
+
+/**
+ * @brief Imprime un resumen por UART del estado actual de los buffers de datos.
+ *
+ * Muestra:
+ * - Cantidad de muestras almacenadas en cada buffer (alta frecuencia, horario, diario).
+ * - Las 3 últimas mediciones almacenadas con su timestamp, sensor ID y PM2.5.
+ */
+void data_logger_print_value(void) {
+
+    BufferCircular buffer_i = buffer_alta_frecuencia;
+    char buffer[256];
+
+    // Imprimir encabezado
+    snprintf(buffer, sizeof(buffer),
+             "\n--- Resumen de Datos Almacenados ---\n"
+             "Buffer: %lu/%lu muestras\n",
+             buffer_i.cantidad, buffer_i.capacidad);
+
+    uart_print("%s", buffer);
+
+    // Imprimir últimas mediciones si hay datos
+    if (buffer_i.cantidad > 0) {
+        uart_print("\nultimas 3 mediciones:\n");
+
+        for (uint32_t i = 0; i < buffer_i.cantidad; i++) {
+            uint32_t indice = (buffer_i.inicio + buffer_i.cantidad - i - 1) % buffer_i.capacidad;
+
+            MedicionMP * medicion = &buffer_i.datos[indice];
 
             snprintf(buffer, sizeof(buffer), "[%s] Sensor %d: PM2.5=%.2f ug/m3\n",
                      medicion->timestamp, medicion->sensor_id, medicion->valores.pm2_5);
@@ -981,6 +1018,59 @@ bool data_logger_store_raw(const ParticulateData * data) {
 void build_iso8601_timestamp(char * buffer, size_t len, const ParticulateData * data) {
     snprintf(buffer, len, "%04u-%02u-%02uT%02u:%02u:%02uZ", data->year, data->month, data->day,
              data->hour, data->min, data->sec);
+}
+
+/**
+ * @brief Devuelve un puntero a la medición PM almacenada para un sensor específico.
+ *
+ * Esta función permite acceder directamente a una estructura `MedicionMP` desde el buffer
+ * de alta frecuencia, usando un índice relativo dentro del subconjunto de datos del sensor.
+ *
+ * La función busca la posición lógica del índice solicitado en el buffer circular,
+ * y verifica que el `sensor_id` de la medición coincida con el solicitado.
+ *
+ * @param sensor_id ID del sensor (0 a NUM_SENSORS_SPS30-1)
+ * @param index Índice dentro de las mediciones válidas del sensor
+ * @return Puntero a `MedicionMP` si existe una medición válida; `NULL` si no hay coincidencia.
+ */
+
+const MedicionMP * data_logger_get_medicion(uint8_t sensor_id, uint8_t index) {
+    if (sensor_id >= NUM_SENSORS_SPS30 || index >= buffer_alta_frecuencia.cantidad) {
+        return NULL;
+    }
+
+    uint32_t i = (buffer_alta_frecuencia.inicio + index) % buffer_alta_frecuencia.capacidad;
+    const MedicionMP * m = &buffer_alta_frecuencia.datos[i];
+    return (m->sensor_id == sensor_id) ? m : NULL;
+}
+
+/**
+ * @brief Devuelve la cantidad de mediciones almacenadas para un sensor específico.
+ *
+ * Esta función recorre el buffer circular de alta frecuencia (`buffer_alta_frecuencia`)
+ * y cuenta cuántas mediciones corresponden al sensor indicado por `sensor_id`.
+ *
+ * Es útil para acceder al número de muestras válidas disponibles para análisis estadístico.
+ *
+ * @param sensor_id ID del sensor (0 a NUM_SENSORS_SPS30-1)
+ * @return Número de mediciones válidas asociadas al sensor; 0 si no hay datos o si el ID es
+ * inválido.
+ */
+
+uint8_t data_logger_get_count(uint8_t sensor_id) {
+    if (sensor_id >= NUM_SENSORS_SPS30) {
+        return 0;
+    }
+
+    uint8_t count = 0;
+    for (uint32_t i = 0; i < buffer_alta_frecuencia.cantidad; i++) {
+        uint32_t idx = (buffer_alta_frecuencia.inicio + i) % buffer_alta_frecuencia.capacidad;
+        if (buffer_alta_frecuencia.datos[idx].sensor_id == sensor_id) {
+            count++;
+        }
+    }
+
+    return count;
 }
 
 /* === Función principal: cálculo periódico basado en RTC ===================================== */

@@ -41,6 +41,8 @@
 #endif
 #include "shdlc.h" // Para acceder a ConcentracionesPM
 #include "uart.h"
+#include "pm25_buffer.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -57,7 +59,7 @@ extern "C" {
  * =============================================================== */
 
 // Tamaños de los buffers circulares
-#define BUFFER_HIGH_FREQ_SIZE 60  /**< 60 muestras = 10 minutos con frecuencia 10s */
+#define BUFFER_HIGH_FREQ_SIZE 100 /**< 60 muestras = 10 minutos con frecuencia 10s */
 #define BUFFER_HOURLY_SIZE    24  /**< 24 muestras = 1 por cada 10 minutos en una hora */
 #define BUFFER_DAILY_SIZE     30  /**< 30 muestras = 1 cada hora durante 30 horas (aprox. 1 día) */
 #define CSV_LINE_BUFFER_SIZE  128 /**< Tamaño máximo para formatear una línea CSV */
@@ -145,6 +147,15 @@ typedef struct {
     uint16_t start;           /**< Índice del elemento más antiguo */
     uint16_t count;           /**< Cantidad almacenada */
 } TemporalBuffer;
+/*
+typedef struct {
+    float pm2_5_promedio;
+    float min;
+    float max;
+    float std;
+    uint8_t n_datos_validos;
+} EstadisticasPM;
+*/
 
 /* === Public function declarations
  * ============================================================ */
@@ -181,13 +192,16 @@ bool data_logger_store_measurement(uint8_t sensor_id, ConcentracionesPM valores,
  * @param sensor_id ID del sensor (0 = todos)
  * @param num_mediciones Número de muestras a promediar
  */
-float data_logger_get_average_pm25(uint8_t sensor_id, uint32_t num_mediciones);
+float data_logger_get_average_pm25_id(uint8_t sensor_id, uint32_t num_mediciones);
 
 /** @brief Proceso periódico de análisis y almacenamiento de promedios. */
 void proceso_analisis_periodico(float pm25_actual);
 
 /** @brief Incrementa el contador de ciclos completados. */
 void data_logger_increment_cycle(void);
+
+/** Imprime los valores almacenado  en el buffer**/
+void data_logger_print_value(void);
 
 /** @brief Verifica si corresponde calcular promedios según el contador. */
 void data_logger_check_cycle_averages(void);
@@ -203,6 +217,23 @@ void log_avg1h_data(const PMDataAveraged * avg);
 
 /** @brief Log de promedio de 24 horas. */
 void log_avg24h_data(const PMDataAveraged * avg);
+
+/**
+ * @brief Devuelve la cantidad de mediciones almacenadas para un sensor.
+ *
+ * @param sensor_id ID del sensor
+ * @return Número de muestras válidas
+ */
+uint8_t data_logger_get_count(uint8_t sensor_id);
+
+/**
+ * @brief Versión de acceso directo a datos desde data_logger (valor crudo).
+ *
+ * @param sensor_id ID del sensor
+ * @param index Índice en el buffer
+ * @return Puntero a estructura `MedicionMP` o NULL si no existe
+ */
+const MedicionMP * data_logger_get_medicion(uint8_t sensor_id, uint8_t index);
 
 /**
  * @brief Formatea una línea CSV a partir de los datos
@@ -288,6 +319,8 @@ void data_logger_increment_cycle(void);
  * internamente a `log_avg1h_data()` o `log_avg24h_data()` si corresponde.
  */
 void data_logger_check_cycle_averages(void);
+
+void data_logger_print_value(void);
 
 /* === End of documentation
  * ==================================================================== */
