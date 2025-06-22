@@ -1,7 +1,3 @@
-¡Perfecto! Basándome en tu estilo de documentación en Markdown y el contenido de `proceso_observador.h`, te dejo una propuesta clara, estructurada y lista para integrar como archivo `proceso_observador.md` o sección en tu documentación principal:
-
----
-
 # 📡 Módulo `proceso_observador` — Adquisición y Validación de Datos PM2.5
 
 ## 📌 Descripción General
