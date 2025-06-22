@@ -39,22 +39,22 @@ Forma parte del sistema embebido para monitoreo ambiental urbano en el contexto 
 
 ```mermaid
 graph TD
-    S1[SPS30.start_measurement()]
-    D1[Delay 5s]
-    S2[SPS30.get_concentrations()]
-    S3[Validar datos]
-    RTC[Leer timestamp DS3231]
-    SD1[Guardar datos crudos]
-    B1[registrar_lectura_pm25()]
-    A1[Acumular en buffers]
-    A2[Calcular promedio si hay 3 sensores]
-    SD2[Guardar promedio si corresponde]
-    U1[Imprimir por UART]
+    S1["SPS30 start_measurement()"]
+    D1["Delay 5s"]
+    S2["SPS30 get_concentrations()"]
+    S3["Validar datos"]
+    RTC["Leer timestamp DS3231"]
+    SD1["Guardar datos crudos"]
+    B1["registrar_lectura_pm25()"]
+    A1["Acumular en buffers"]
+    A2["Calcular promedio si hay 3 sensores"]
+    SD2["Guardar promedio si corresponde"]
+    U1["Imprimir por UART"]
 
     S1 --> D1 --> S2 --> S3
     S3 -->|válido| RTC --> SD1 --> B1 --> A1 --> A2 --> SD2
     S3 -->|válido| U1
-```
+
 
 ---
 
