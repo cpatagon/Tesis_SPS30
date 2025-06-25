@@ -99,6 +99,8 @@ static ds3231_time_t daily_start_time = {0};
 
 /* === Public variable definitions ============================================================= */
 
+BufferCircularSensor buffers_10min[MAX_SENSORES_SPS30];
+
 /* === Private variable definitions ============================================================ */
 
 /* === Private function implementation ========================================================= */
@@ -548,6 +550,9 @@ bool data_logger_store_measurement(uint8_t sensor_id, ConcentracionesPM valores,
 float data_logger_get_average_pm25_id(uint8_t sensor_id, uint32_t num_mediciones) {
     float suma = 0.0f;
     uint32_t contador = 0;
+    // Obtener índice del último dato válido
+    // uint8_t idx_ultimo = (buf->head + BUFFER_10MIN_SIZE - 1) % BUFFER_10MIN_SIZE;
+    // SensorData *ultima_muestra = &buf->buffer[idx_ultimo];
 
     // Limitar la cantidad de mediciones a usar
     if (num_mediciones > buffer_alta_frecuencia.cantidad) {
@@ -585,24 +590,22 @@ float data_logger_get_average_pm25_id(uint8_t sensor_id, uint32_t num_mediciones
  * @return true si al menos un sensor tuvo datos válidos y se calcularon estadísticas, false en caso
  * contrario.
  */
+#include <math.h> // Asegúrate de tener esto incluido
+
 bool data_logger_estadistica_10min_pm25(BufferCircularSensor * buffers,
-                                        EstadisticaPM25 * resultados, uint8_t max_resultados) {
-    if (!buffers || !resultados || max_resultados == 0)
+                                        EstadisticaPM25 * resultado) {
+    if (!buffers || !resultado)
         return false;
 
-    uint8_t count = 0;
+    float suma = 0.0f, min = 10000.0f, max = -10000.0f;
+    float valores[BUFFER_10MIN_SIZE * MAX_SENSORES_SPS30]; // espacio para combinar todos
+    uint16_t n = 0;
 
-    for (uint8_t i = 0; i < MAX_SENSORES_SPS30 && count < max_resultados; ++i) {
+    for (uint8_t i = 0; i < MAX_SENSORES_SPS30; ++i) {
         BufferCircularSensor * buf = &buffers[i];
-
         if (buf->count == 0)
             continue;
 
-        float suma = 0.0f, min = 10000.0f, max = -10000.0f;
-        float valores[BUFFER_10MIN_SIZE];
-        uint8_t n = 0;
-
-        // Recorre los elementos del buffer desde el head hacia atrás
         for (uint8_t j = 0; j < buf->count; ++j) {
             uint8_t idx = (buf->head + BUFFER_10MIN_SIZE - j - 1) % BUFFER_10MIN_SIZE;
             float val = buf->buffer[idx].pm2_5;
@@ -614,27 +617,46 @@ bool data_logger_estadistica_10min_pm25(BufferCircularSensor * buffers,
             if (val > max)
                 max = val;
         }
-
-        float promedio = suma / n;
-
-        // Calcular desv. estándar
-        float suma_cuadrados = 0.0f;
-        for (uint8_t j = 0; j < n; ++j) {
-            float diff = valores[j] - promedio;
-            suma_cuadrados += diff * diff;
-        }
-
-        float stddev = (n > 1) ? sqrtf(suma_cuadrados / (n - 1)) : 0.0f;
-
-        resultados[count++] = (EstadisticaPM25){.sensor_id = i + 1,
-                                                .promedio = promedio,
-                                                .min = min,
-                                                .max = max,
-                                                .desviacion_estandar = stddev,
-                                                .num_validos = n};
     }
 
-    return (count > 0);
+    if (n == 0)
+        return false;
+
+    float promedio = suma / n;
+
+    float suma_cuadrados = 0.0f;
+    for (uint16_t i = 0; i < n; ++i) {
+        float diff = valores[i] - promedio;
+        suma_cuadrados += diff * diff;
+    }
+
+    float stddev = (n > 1) ? sqrtf(suma_cuadrados / (n - 1)) : 0.0f;
+
+    // Tomar fecha/hora de la última muestra del último sensor que tenía datos
+    for (int8_t i = MAX_SENSORES_SPS30 - 1; i >= 0; --i) {
+        if (buffers[i].count > 0) {
+            uint8_t idx_ultimo = (buffers[i].head + BUFFER_10MIN_SIZE - 1) % BUFFER_10MIN_SIZE;
+            const SensorData * muestra = &buffers[i].buffer[idx_ultimo];
+
+            *resultado = (EstadisticaPM25){.sensor_id = 0, // 0: estadística combinada
+                                           .year = muestra->year,
+                                           .month = muestra->month,
+                                           .day = muestra->day,
+                                           .hour = muestra->hour,
+                                           .min = muestra->min,
+                                           .sec = muestra->sec,
+                                           .bloque_10min = muestra->bloque_10min,
+
+                                           .pm2_5_promedio = promedio,
+                                           .pm2_5_min = min,
+                                           .pm2_5_max = max,
+                                           .pm2_5_std = stddev,
+                                           .num_validos = n};
+            return true;
+        }
+    }
+
+    return false; // Fallback, no se encontró muestra válida
 }
 
 /**
@@ -1068,6 +1090,58 @@ bool data_logger_store_raw(const ParticulateData * data) {
     return ok;
 }
 
+bool data_logger_store_avg10_csv(const EstadisticaPM25 * data) {
+    if (!data || !sd_mounted) {
+        if (!data_logger_init())
+            return false;
+    }
+
+    char filepath[128];
+    char csv_line[256];
+    char dirpath[64];
+
+    // Crear carpetas
+    snprintf(dirpath, sizeof(dirpath), "/%04d", data->year);
+    f_mkdir(dirpath);
+
+    snprintf(dirpath, sizeof(dirpath), "/%04d/%02d", data->year, data->month);
+    f_mkdir(dirpath);
+
+    snprintf(dirpath, sizeof(dirpath), "/%04d/%02d/%02d", data->year, data->month, data->day);
+    f_mkdir(dirpath);
+
+    // Nombre del archivo de promedios cada 10 min
+    snprintf(filepath, sizeof(filepath), "/%04d/%02d/%02d/AVG10_%04d%02d%02d.CSV", data->year,
+             data->month, data->day, data->year, data->month, data->day);
+
+    // Abrir archivo
+    FIL file;
+    FRESULT res = f_open(&file, filepath, FA_OPEN_ALWAYS | FA_WRITE);
+    if (res != FR_OK) {
+        uart_print("[ERROR] No se pudo abrir AVG10 para escribir\r\n");
+        print_fatfs_error(res);
+        return false;
+    }
+
+    // Escribir encabezado si está vacío
+    if (f_size(&file) == 0) {
+        const char * header =
+            "# Formato: timestamp, pm2.5_promedio, pm2.5_min, pm2.5_max, pm2.5_std, muestras\n";
+        UINT bw;
+        f_write(&file, header, strlen(header), &bw);
+    }
+    f_close(&file);
+
+    // Construir línea CSV
+    snprintf(csv_line, sizeof(csv_line), "%04d-%02d-%02d %02d:%02d:%02d,%.2f,%.2f,%.2f,%.2f,%u\r\n",
+             data->year, data->month, data->day, data->hour, data->min, data->sec,
+             data->pm2_5_promedio, data->pm2_5_min, data->pm2_5_max, data->pm2_5_std,
+             data->num_validos);
+
+    // Escribir línea CSV
+    return microSD_appendLineAbsolute(filepath, csv_line);
+}
+
 /**
  * @brief Construye una cadena con formato de timestamp ISO8601 a partir de una estructura de datos.
  *
@@ -1248,6 +1322,17 @@ bool data_logger_store_sensor_data(SensorBufferTemp * temp_buffer,
     }
 
     return ok;
+}
+
+void data_logger_buffer_limpiar_todos(BufferCircularSensor * buffers) {
+    if (!buffers)
+        return;
+
+    for (uint8_t i = 0; i < MAX_SENSORES_SPS30; ++i) {
+        buffers[i].head = 0;
+        buffers[i].count = 0;
+        memset(buffers[i].buffer, 0, sizeof(buffers[i].buffer));
+    }
 }
 
 /* === Función principal: cálculo periódico basado en RTC ===================================== */

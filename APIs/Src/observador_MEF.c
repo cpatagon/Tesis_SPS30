@@ -47,6 +47,8 @@ uint8_t cantidad = 0;
 
 /* === Private variable declarations =========================================================== */
 
+EstadisticaPM25 resultado;
+
 /* === Private function declarations =========================================================== */
 
 /* === Public variable definitions ============================================================= */
@@ -105,7 +107,7 @@ void observador_MEF_actualizar(void) {
         break;
 
     case ESTADO_ALMACENAMIENTO:
-        if (data_logger_store_sensor_data(&buffer_temp, buffers_10min)) {
+        if (data_logger_store_sensor_data(&buffer_temp, &buffers_10min)) {
             if (time_rtc_hay_cambio_bloque()) {
                 observador_MEF_cambiar_estado(ESTADO_CALCULO);
             } else {
@@ -116,19 +118,26 @@ void observador_MEF_actualizar(void) {
         }
         break;
 
-    case ESTADO_CALCULO:
-        EstadisticaPM25 resultados[MAX_SENSORES_SPS30];
-
-        if (data_logger_estadistica_10min_pm25(buffers_10min, resultados, MAX_SENSORES_SPS30)) {
-            data_logger_guardar_csv(
-                resultados, MAX_SENSORES_SPS30); // Asumiendo que esta función acepta resultados
-            buffer_limpiar(buffers_10min);
-            observador_MEF_cambiar_estado(ESTADO_REPOSO);
+    case ESTADO_CALCULO: {
+        if (data_logger_estadistica_10min_pm25(&buffers_10min, &resultado)) {
+            observador_MEF_cambiar_estado(ESTADO_GUARDADO);
         } else {
             uart_print("[ERROR] No se pudieron calcular estadísticas de PM2.5\r\n");
             observador_MEF_cambiar_estado(ESTADO_ERROR);
         }
         break;
+    }
+    case ESTADO_GUARDADO: {
+        data_logger_store_avg10_csv(&resultado); // o resultado_global si es global
+        observador_MEF_cambiar_estado(ESTADO_LIMPIESA);
+        break;
+    }
+    case ESTADO_LIMPIESA: {
+        data_logger_buffer_limpiar_todos(&buffers_10min);
+        data_logger_buffer_limpiar_todos(&buffer_temp);
+        observador_MEF_cambiar_estado(ESTADO_REPOSO);
+        break;
+    }
 
     case ESTADO_ERROR:
         uart_print("[ERROR] Se detectó un problema en el sistema de adquisición\r\n");

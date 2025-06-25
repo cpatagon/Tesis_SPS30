@@ -33,6 +33,7 @@
 /* === Headers files inclusions
  * ================================================================ */
 #include <stdint.h>
+#include "config_sistema.h"
 
 /* === Cabecera C++
  * ============================================================================
@@ -44,25 +45,6 @@ extern "C" {
 /* === Public macros definitions
  * =============================================================== */
 
-/** Unidades estándar de las mediciones */
-#define UNIT_PM_CONCENTRATION                                                  \
-  "ug/m3" ///< Unidades de concentración de partículas
-#define UNIT_TEMPERATURE "Celsius" ///< Temperatura en grados Celsius
-#define UNIT_HUMIDITY "%%RH"       ///< Humedad relativa en porcentaje
-
-/** Información de ubicación del sistema */
-#define LOCATION_NAME "Cerrillos, Santiago, Chile"
-#define LOCATION_LATITUDE -33.4940f
-#define LOCATION_LONGITUDE -70.7260f
-#define LOCATION_COORDS "-33.495, -70.720"
-
-/** Cantidad de sensores de MP instalados */
-#define NUM_SENSORS_SPS30 3
-
-/** Longitud máxima para nombres y seriales */
-#define SENSOR_NAME_MAX_LEN 32
-#define SENSOR_SERIAL_MAX_LEN 32
-
 /* === Public data type declarations
  * =========================================================== */
 
@@ -70,8 +52,8 @@ extern "C" {
  * @brief Información de identificación y ubicación del sensor de MP
  */
 typedef struct {
-  char serial_number[SENSOR_SERIAL_MAX_LEN + 1]; ///< Número de serie del sensor
-  char location_name[64]; ///< Nombre del lugar de instalación
+    char serial_number[SENSOR_SERIAL_MAX_LEN + 1]; ///< Número de serie del sensor
+    char location_name[64];                        ///< Nombre del lugar de instalación
 } MP_SensorInfo;
 
 /* === Public variable declarations

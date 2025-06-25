@@ -39,6 +39,8 @@
 #include "uart.h"
 #include "observador_MEF.h"
 #include <stdbool.h>
+#include "config_sistema.h"
+#include "config_mensaje.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,17 +50,6 @@ extern "C" {
 #define MSG_PM_FORMAT_WITH_TIME                                                                    \
     "[%s] SPS30 ID:%d | PM1.0: %.2f | PM2.5: %.2f | PM4.0: %.2f | PM10: %.2f | "                   \
     "ug/m3\n"
-
-#define MSG_ERROR_REINT             "**ERROR[SPS30_RETRY] Intento fallido, reintentando...\n"
-#define MSG_ERROR_FALLO             "**ERROR[SPS30_FAIL][%s] Sensor ID:%d sin respuesta tras 3 intentos\n"
-
-#define BUFFER_SIZE_MSG_PM_FORMAT   256
-#define BUFFER_SIZE_MSG_ERROR_FALLO 96
-
-#define NUM_REINT                   3
-#define CONC_MIN_PM                 0.0f
-#define CONC_MAX_PM                 1000.0f
-#define DELAY_MS_SPS30_LECTURA      5000
 
 /* === Declaraciones de funciones públicas === */
 

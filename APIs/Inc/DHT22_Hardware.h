@@ -28,6 +28,7 @@
  ** @brief
  **/
 #include "stm32f4xx_hal.h"
+#include "dht22_config.h"
 // #include "DHT22.h"  // Asegúrate de incluir DHT22.h para que se conozcan los
 // tipos
 
@@ -53,8 +54,8 @@ extern "C" {
  * conectado el sensor DHT22.
  */
 typedef struct {
-  GPIO_TypeDef *GPIOx; /**< Puerto GPIO donde está conectado el DHT22. */
-  uint16_t GPIO_Pin;   /**< Pin GPIO donde está conectado el DHT22. */
+    GPIO_TypeDef * GPIOx; /**< Puerto GPIO donde está conectado el DHT22. */
+    uint16_t GPIO_Pin;    /**< Pin GPIO donde está conectado el DHT22. */
 } DHT22_HandleTypeDef;
 /* === Public variable declarations
  * ============================================================ */
@@ -75,8 +76,7 @@ typedef struct {
  *
  * @retval None
  */
-void DHT22_InitHardware(DHT22_HandleTypeDef *dht, GPIO_TypeDef *GPIOx,
-                        uint16_t GPIO_Pin);
+void DHT22_InitHardware(DHT22_HandleTypeDef * dht, GPIO_TypeDef * GPIOx, uint16_t GPIO_Pin);
 
 /**
  * @brief Configura el pin GPIO como salida.
@@ -89,7 +89,7 @@ void DHT22_InitHardware(DHT22_HandleTypeDef *dht, GPIO_TypeDef *GPIOx,
  *
  * @retval None
  */
-void DHT22_SetPinOutput(DHT22_HandleTypeDef *dht);
+void DHT22_SetPinOutput(DHT22_HandleTypeDef * dht);
 
 /**
  * @brief Configura el pin GPIO como entrada.
@@ -102,7 +102,7 @@ void DHT22_SetPinOutput(DHT22_HandleTypeDef *dht);
  *
  * @retval None
  */
-void DHT22_SetPinInput(DHT22_HandleTypeDef *dht);
+void DHT22_SetPinInput(DHT22_HandleTypeDef * dht);
 
 /**
  * @brief Envía la señal de inicio al sensor DHT22.
@@ -115,7 +115,7 @@ void DHT22_SetPinInput(DHT22_HandleTypeDef *dht);
  *
  * @retval None
  */
-void DHT22_StartSignal(DHT22_HandleTypeDef *dht);
+void DHT22_StartSignal(DHT22_HandleTypeDef * dht);
 
 /**
  * @brief Lee un byte de datos del sensor DHT22.
@@ -128,7 +128,7 @@ void DHT22_StartSignal(DHT22_HandleTypeDef *dht);
  *
  * @retval uint8_t El byte leído del sensor.
  */
-uint8_t DHT22_ReadByte(DHT22_HandleTypeDef *dht);
+uint8_t DHT22_ReadByte(DHT22_HandleTypeDef * dht);
 
 /**
  * @brief Lee un bit de datos del sensor DHT22.
@@ -140,7 +140,7 @@ uint8_t DHT22_ReadByte(DHT22_HandleTypeDef *dht);
  *
  * @retval uint8_t El bit leído del sensor (0 o 1).
  */
-uint8_t DHT22_ReadBit(DHT22_HandleTypeDef *dht);
+uint8_t DHT22_ReadBit(DHT22_HandleTypeDef * dht);
 /* === End of documentation
  * ==================================================================== */
 

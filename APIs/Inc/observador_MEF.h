@@ -39,6 +39,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "pm25_buffer.h"    // Aquí está definido BufferCircularSensor
+#include "config_sistema.h" // Aquí debe estar MAX_SENSORES_SPS30
 
 /* === Cabecera C++ ============================================================================ */
 #ifdef __cplusplus
@@ -58,10 +60,14 @@ typedef enum {
     ESTADO_LECTURA,        /**< Lectura del sensor. */
     ESTADO_ALMACENAMIENTO, /**< Almacenamiento en buffer o microSD. */
     ESTADO_CALCULO,        /**< Cálculo de estadísticas. */
-    ESTADO_ERROR           /**< Estado de error del sistema. */
+    ESTADO_GUARDADO,       // Nuevo
+    ESTADO_LIMPIESA,
+    ESTADO_ERROR /**< Estado de error del sistema. */
 } Estado_Observador;
 
 /* === Public variable declarations ============================================================ */
+
+extern BufferCircularSensor buffers_10min[MAX_SENSORES_SPS30];
 
 /* === Public function declarations ============================================================ */
 /**

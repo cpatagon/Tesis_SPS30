@@ -36,6 +36,7 @@
 #include "uart.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include "sps30_config.h"
 
 /* === Cabecera C++
  * ============================================================================
@@ -47,66 +48,6 @@ extern "C" {
 /* === Public macros definitions
  * =============================================================== */
 
-/** @defgroup SPS30_COMMANDS Comandos del sensor SPS30 */
-/** @{ */
-#define SPS30_CMD_START_MEASUREMENT                                            \
-  0x00 /**< Comando para iniciar la medición. */
-#define SPS30_CMD_STOP_MEASUREMENT                                             \
-  0x01 /**< Comando para detener la medición. */
-#define SPS30_CMD_READ_MEASUREMENT                                             \
-  0x03 /**< Comando para leer los datos de medición. */
-#define SPS30_CMD_SLEEP                                                        \
-  0x10 /**< Comando para poner el sensor en modo de sueño. */
-#define SPS30_CMD_WAKE_UP                                                      \
-  0x11 /**< Comando para despertar el sensor del modo de sueño. */
-#define SPS30_CMD_FAN_CLEAN_INTV                                               \
-  0x80 /**< Comando para establecer el intervalo de limpieza del ventilador.   \
-        */
-#define SPS30_CMD_START_FAN_CLEANING                                           \
-  0x56 /**< Comando para iniciar la limpieza del ventilador. */
-#define SPS30_CMD_DEV_INFO                                                     \
-  0xd0 /**< Comando para solicitar información del dispositivo. */
-#define SPS30_CMD_READ_VERSION                                                 \
-  0xd1                       /**< Comando para leer la versión de firmware. */
-#define SPS30_CMD_RESET 0xd3 /**< Comando para reiniciar el sensor. */
-/** @} */
-
-/**
- * @brief Macro para definir un código de error basado en el estado
- * proporcionado.
- * @param state Estado específico para combinar con la máscara de error.
- */
-#define SPS30_ERR_STATE(state) (SPS30_ERR_STATE_MASK | (state))
-
-/** @brief Frame de inicio de medición para comunicación SHDLC. */
-#define SPS30_FRAME_START_MEASUREMENT                                          \
-  { 0x7E, 0x00, 0x00, 0x02, 0x01, 0x03, 0xF9, 0x7E }
-
-/** @brief Frame para solicitar la lectura de medición al SPS30. */
-#define SPS30_FRAME_READ_MEASUREMENT                                           \
-  { 0x7E, 0x00, 0x03, 0x00, 0xFC, 0x7E }
-
-/** @brief Frame para solicitar el número de serie del SPS30. */
-#define SPS30_FRAME_SERIAL_NUMBER                                              \
-  { 0x7E, 0x00, 0xD0, 0x01, 0x03, 0x2B, 0x7E }
-
-/** @brief Frame para poner el SPS30 en modo de sueño. */
-#define SPS30_FRAME_SLEEP                                                      \
-  { 0x7E, 0x00, 0x10, 0x00, 0xEF, 0x7E }
-
-/** @brief Frame para detener la medición en el SPS30. */
-#define SPS30_FRAME_STOP_MEASUREMENT                                           \
-  { 0x7E, 0x00, 0x01, 0x00, 0xFE, 0x7E }
-
-/** @brief Frame para despertar el SPS30 del modo de sueño. */
-#define SPS30_FRAME_WAKE_UP                                                    \
-  { 0x7E, 0x00, 0x7D, 0x31, 0x00, 0xEE, 0x7E }
-
-/** @brief Pulso para despertar el SPS30 del modo de sueño. */
-#define SPS30_PULSE_WAKE_UP 0xFF
-
-#define SERIAL_BUFFER_LEN 33
-
 /* === Public data type declarations
  * =========================================================== */
 
@@ -116,30 +57,27 @@ typedef struct SPS30 SPS30;
 // Declara externamente el manejador de UART, asumiendo que se define en otro
 // lugar Estructura que representa el objeto SPS30
 typedef struct SPS30 {
-  UART_HandleTypeDef *huart;
-  char serial_buf[SERIAL_BUFFER_LEN]; // Buffer para guardar número de serie
+    UART_HandleTypeDef * huart;
+    char serial_buf[SERIAL_BUFFER_LEN]; // Buffer para guardar número de serie
 
-  // Métodos
-  void (*send_command)(struct SPS30 *self, const uint8_t *command,
-                       uint16_t commandSize);
-  void (*receive_async)(struct SPS30 *self, uint8_t *dataBuffer,
-                        uint16_t bufferSize);
+    // Métodos
+    void (*send_command)(struct SPS30 * self, const uint8_t * command, uint16_t commandSize);
+    void (*receive_async)(struct SPS30 * self, uint8_t * dataBuffer, uint16_t bufferSize);
 
-  // Cambiado de void a bool
-  bool (*send_receive)(struct SPS30 *self, const uint8_t *command,
-                       uint16_t commandSize, uint8_t *dataBuffer,
-                       uint16_t bufferSize);
+    // Cambiado de void a bool
+    bool (*send_receive)(struct SPS30 * self, const uint8_t * command, uint16_t commandSize,
+                         uint8_t * dataBuffer, uint16_t bufferSize);
 
-  void (*start_measurement)(struct SPS30 *self);
-  void (*stop_measurement)(struct SPS30 *self);
-  void (*sleep)(struct SPS30 *self);
-  void (*read_data)(struct SPS30 *self);
+    void (*start_measurement)(struct SPS30 * self);
+    void (*stop_measurement)(struct SPS30 * self);
+    void (*sleep)(struct SPS30 * self);
+    void (*read_data)(struct SPS30 * self);
 
-  // También declarada correctamente como bool
-  bool (*serial_number)(struct SPS30 *self, char *out_serial);
+    // También declarada correctamente como bool
+    bool (*serial_number)(struct SPS30 * self, char * out_serial);
 
-  void (*wake_up)(struct SPS30 *self);
-  ConcentracionesPM (*get_concentrations)(struct SPS30 *self);
+    void (*wake_up)(struct SPS30 * self);
+    ConcentracionesPM (*get_concentrations)(struct SPS30 * self);
 } SPS30;
 /* === Public variable declarations
  * ============================================================ */
@@ -148,9 +86,9 @@ typedef struct SPS30 {
  * ============================================================ */
 
 // Prototipos de funciones para inicializar el objeto SPS30
-void SPS30_init(SPS30 *self, UART_HandleTypeDef *huart);
+void SPS30_init(SPS30 * self, UART_HandleTypeDef * huart);
 
-bool sps30_serial_number(SPS30 *self, char *out_serial);
+bool sps30_serial_number(SPS30 * self, char * out_serial);
 
 /* === End of documentation
  * ==================================================================== */

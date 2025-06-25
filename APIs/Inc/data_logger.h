@@ -44,6 +44,8 @@
 #include "pm25_buffer.h"
 #include "data_logger.h"
 #include "sensor.h"
+#include "config_sistema.h"
+#include "buffers_config.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -59,25 +61,6 @@ extern "C" {
 
 /* === Public macros definitions
  * =============================================================== */
-
-// Tamaños de los buffers circulares
-#define BUFFER_HIGH_FREQ_SIZE 100 /**< 60 muestras = 10 minutos con frecuencia 10s */
-#define BUFFER_HOURLY_SIZE    24  /**< 24 muestras = 1 por cada 10 minutos en una hora */
-#define BUFFER_DAILY_SIZE     30  /**< 30 muestras = 1 cada hora durante 30 horas (aprox. 1 día) */
-#define CSV_LINE_BUFFER_SIZE  128 /**< Tamaño máximo para formatear una línea CSV */
-#define BUFFER_10MIN_SIZE     100
-
-// Conteo de ciclos para promedios (obsoletos, mantenidos por compatibilidad)
-#define CYCLES_AVG_10MIN 60   /**< 60 ciclos equivalen a 10 minutos */
-#define CYCLES_AVG_1H    360  /**< 360 ciclos equivalen a 1 hora */
-#define CYCLES_AVG_24H   8640 /**< 8640 ciclos equivalen a 24 horas */
-
-// Nuevas constantes basadas en tiempo real
-#define MAX_SAMPLES_PER_10MIN 60 /**< Muestras de 10 s en 10 minutos */
-#define AVG10_PER_HOUR        6  /**< Cantidad de ventanas de 10 min en 1 hora */
-#define AVG1H_PER_DAY         24 /**< Cantidad de promedios horarios en 24 h */
-
-#define MAX_SENSORES_SPS30    3
 
 /* === Public data type declarations
  * =========================================================== */
@@ -159,18 +142,26 @@ typedef struct {
     uint16_t start;           /**< Índice del elemento más antiguo */
     uint16_t count;           /**< Cantidad almacenada */
 } TemporalBuffer;
-/*
+
 typedef struct {
+    uint8_t sensor_id;
+
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t hour;
+    uint8_t min;
+    uint8_t sec;
+    uint8_t bloque_10min;
+
     float pm2_5_promedio;
-    float min;
-    float max;
-    float std;
-    uint8_t n_datos_validos;
-} EstadisticasPM;
-*/
+    float pm2_5_min;
+    float pm2_5_max;
+    float pm2_5_std;
+    uint8_t num_validos;
+} EstadisticaPM25;
 
 // --- Buffers por sensor (asumiendo sensor_id ∈ {1, 2, 3}) ---
-static BufferCircularSensor buffers_10min[MAX_SENSORES_SPS30];
 
 /* === Public function declarations
  * ============================================================ */
@@ -358,6 +349,13 @@ bool buffer_guardar(SensorBufferTemp * buffer);
  */
 bool data_logger_store_sensor_data(SensorBufferTemp * temp_buffer,
                                    BufferCircularSensor * buffers_destino);
+
+bool data_logger_estadistica_10min_pm25(BufferCircularSensor * buffers,
+                                        EstadisticaPM25 * resultado);
+
+bool data_logger_store_avg10_csv(const EstadisticaPM25 * data);
+
+void data_logger_buffer_limpiar_todos(BufferCircularSensor * buffers);
 
 /* === End of documentation
  * ==================================================================== */

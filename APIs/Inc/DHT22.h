@@ -31,6 +31,7 @@
 /* === Headers files inclusions ================================================================ */
 #include "stm32f4xx_hal.h"
 #include "DHT22_Hardware.h"
+#include "dht22_config.h"
 #include <stdbool.h>
 // #include "gpio.h"
 
@@ -40,14 +41,6 @@ extern "C" {
 #endif
 
 /* === Public macros definitions =============================================================== */
-
-// Definir constantes de estado
-#define DHT22_OK             0     // Indica que la operación fue exitosa
-#define DHT22_ERROR          1     // Indica que ocurrió un error general
-#define DHT22_ERROR_PIN_HIGH 99901 // Error: No hay respuesta del sensor (pin en estado alto)
-#define DHT22_ERROR_PIN_LOW  99902 // Error: No hay respuesta del sensor (pin en estado bajo)
-#define DHT22_ERROR_CHECKSUM 99903 // Error: Checksum incorrecto
-#define DHT22_ERROR_RESPONSE 99904 // Error: Respuesta incorrecta del sensor
 
 /* === Public data type declarations =========================================================== */
 
