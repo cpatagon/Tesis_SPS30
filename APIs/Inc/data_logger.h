@@ -39,13 +39,16 @@
 #else
 #include "ff.h"
 #endif
+
+#include "config_sistema.h"
+#include "data_types.h"
+#include "buffers_config.h"
+
 #include "shdlc.h" // Para acceder a ConcentracionesPM
 #include "uart.h"
 #include "pm25_buffer.h"
 #include "data_logger.h"
 #include "sensor.h"
-#include "config_sistema.h"
-#include "buffers_config.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -67,99 +70,6 @@ extern "C" {
 
 /* === Public variable declarations
  * ============================================================ */
-
-/**
- * @struct MedicionMP
- * @brief Estructura para almacenar una medición puntual de PM
- */
-typedef struct {
-    char timestamp[32];        /**< Timestamp en formato ISO8601 */
-    uint8_t sensor_id;         /**< ID del sensor */
-    ConcentracionesPM valores; /**< Concentraciones PM medidas */
-    float temperatura;         /**< Temperatura en °C */
-    float humedad;             /**< Humedad relativa en % */
-} MedicionMP;
-
-/**
- * @struct BufferCircular
- * @brief Estructura para manejar buffers circulares de mediciones
- */
-typedef struct {
-    MedicionMP * datos; /**< Arreglo de mediciones */
-    uint32_t capacidad; /**< Tamaño máximo del buffer */
-    uint32_t inicio;    /**< Índice del elemento más antiguo */
-    uint32_t cantidad;  /**< Cantidad actual de elementos */
-} BufferCircular;
-
-// --- Estructura del buffer circular por sensor ---
-typedef struct {
-    SensorData buffer[BUFFER_10MIN_SIZE];
-    uint8_t head;
-    uint8_t count;
-} BufferCircularSensor;
-
-/**
- * @struct PMDataAveraged
- * @brief Estructura para almacenar estadísticas de PM2.5
- */
-typedef struct {
-    float mean; /**< Media */
-    float max;  /**< Máximo */
-    float min;  /**< Mínimo */
-    float std;  /**< Desviación estándar */
-} PMDataAveraged;
-
-/**
- * @struct TimeWindow
- * @brief Ventana temporal de muestras sincronizadas con RTC
- */
-typedef struct {
-    ds3231_time_t start_time;             /**< Inicio de la ventana */
-    float samples[MAX_SAMPLES_PER_10MIN]; /**< Datos de PM2.5 */
-    uint16_t count;                       /**< Cantidad de muestras */
-} TimeWindow;
-
-/**
- * @struct TimeSyncedAverage
- * @brief Estadísticos calculados para una ventana temporal
- */
-typedef struct {
-    ds3231_time_t timestamp; /**< Marca temporal asociada al promedio */
-    float pm2_5_avg;         /**< Valor medio de PM2.5 */
-    uint16_t sample_count;   /**< Número de muestras consideradas */
-    float pm2_5_min;         /**< Valor mínimo */
-    float pm2_5_max;         /**< Valor máximo */
-    float pm2_5_std;         /**< Desviación estándar */
-} TimeSyncedAverage;
-
-/**
- * @struct TemporalBuffer
- * @brief Buffer circular de promedios temporales
- */
-typedef struct {
-    TimeSyncedAverage * data; /**< Arreglo de promedios */
-    uint16_t capacity;        /**< Tamaño máximo */
-    uint16_t start;           /**< Índice del elemento más antiguo */
-    uint16_t count;           /**< Cantidad almacenada */
-} TemporalBuffer;
-
-typedef struct {
-    uint8_t sensor_id;
-
-    uint16_t year;
-    uint8_t month;
-    uint8_t day;
-    uint8_t hour;
-    uint8_t min;
-    uint8_t sec;
-    uint8_t bloque_10min;
-
-    float pm2_5_promedio;
-    float pm2_5_min;
-    float pm2_5_max;
-    float pm2_5_std;
-    uint8_t num_validos;
-} EstadisticaPM25;
 
 // --- Buffers por sensor (asumiendo sensor_id ∈ {1, 2, 3}) ---
 
@@ -331,31 +241,56 @@ void data_logger_print_value(void);
 /**
  * @brief Guarda los datos de un sensor en el buffer circular de 10 minutos.
  *
- * Esta función recibe una estructura `SensorData` completa, que incluye
+ * Esta función recibe una estructura `MedicionMP` completa, que incluye
  * identificador del sensor, datos de PM, temperatura, humedad y timestamp,
  * y lo inserta en el buffer correspondiente.
  *
+ * @param buffer Puntero al buffer circular destino.
  * @param data Estructura con los datos del sensor.
  * @return true si se guardaron correctamente, false si ocurrió un error (e.g. overflow).
  */
-bool buffer_guardar(SensorBufferTemp * buffer);
+bool buffer_guardar(BufferCircular * buffer);
 
 /**
- * @brief Guarda múltiples mediciones desde un buffer temporal en los buffers circulares
- * correspondientes.
- * @param temp_buffer Puntero al buffer temporal con lecturas de múltiples sensores.
+ * @brief Guarda múltiples mediciones desde un arreglo temporal en los buffers circulares.
+ *
+ * @param temp_data Arreglo de datos de sensores (uno por sensor).
+ * @param num_mediciones Número de elementos en el arreglo.
  * @param buffers_destino Arreglo de buffers circulares, uno por sensor.
- * @return true si todas las mediciones se guardaron correctamente, false si al menos una falló.
+ * @return true si todas las mediciones se guardaron correctamente, false si alguna falló.
  */
-bool data_logger_store_sensor_data(SensorBufferTemp * temp_buffer,
+
+bool data_logger_store_sensor_data(const MedicionMP * temp_data, size_t num_mediciones,
                                    BufferCircularSensor * buffers_destino);
 
-bool data_logger_estadistica_10min_pm25(BufferCircularSensor * buffers,
+/**
+ * @brief Calcula estadísticas de PM2.5 sobre un buffer de datos.
+ *
+ * @param buffer Puntero al buffer circular con datos recientes.
+ * @param resultado Puntero a la estructura donde se guardará la estadística calculada.
+ * @return true si se pudo calcular la estadística, false si no había datos suficientes.
+ */
+
+bool data_logger_estadistica_10min_pm25(const BufferCircularSensor * buffers,
                                         EstadisticaPM25 * resultado);
 
+/**
+ * @brief Guarda una estadística de 10 minutos en la microSD en formato CSV.
+ *
+ * @param data Estructura de estadística ya calculada.
+ * @return true si se escribió correctamente en la microSD, false si ocurrió un error.
+ */
 bool data_logger_store_avg10_csv(const EstadisticaPM25 * data);
 
+/**
+ * @brief Limpia todos los buffers circulares asignados a sensores.
+ *
+ * @param buffers Arreglo de buffers circulares, uno por sensor.
+ */
+// void data_logger_buffer_limpiar_todos(BufferCircular * buffers);
 void data_logger_buffer_limpiar_todos(BufferCircularSensor * buffers);
+
+void registrar_promedio_24h(const ds3231_time_t * dt);
 
 /* === End of documentation
  * ==================================================================== */

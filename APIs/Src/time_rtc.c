@@ -51,7 +51,7 @@ extern UART_HandleTypeDef huart1;
 
 RTC_Source active_rtc = RTC_SOURCE_INTERNAL; // Por defecto
 
-static uint8_t minuto_anterior = 255;
+// static uint8_t minuto_anterior = 255;
 
 /* === Función interna ============================================================= */
 

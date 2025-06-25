@@ -15,10 +15,13 @@
 
 /* === Headers files inclusions =============================================================== */
 
+#include "config_global.h"
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <math.h>
 
 #include "fatfs.h"
 #include "fatfs_sd.h"
@@ -29,8 +32,8 @@
 #include "data_logger.h"
 #include "time_rtc.h"
 #include "sensor.h"
-
 #include "uart.h"
+
 #ifdef UNIT_TESTING
 #undef UNIT_TESTING
 #include "ff_stub.h"
@@ -322,6 +325,8 @@ static void save_temporal_average_to_csv(const TimeSyncedAverage * avg, const ch
  *
  * @param avg Puntero a la estructura `PMDataAveraged` con los datos a registrar.
  */
+
+/*
 void log_avg10_data(const PMDataAveraged * avg) {
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "%.2f,%.2f,%.2f,%.2f\n", avg->mean, avg->max, avg->min,
@@ -331,7 +336,7 @@ void log_avg10_data(const PMDataAveraged * avg) {
 
     uart_print("[PROMEDIO 10min] PM2.5 -> media: %.2f, max: %.2f, min: %.2f, std: %.2f\r\n",
                avg->mean, avg->max, avg->min, avg->std);
-}
+}*/
 
 /**
  * @brief Registra en la microSD los datos promediados de PM2.5 cada 1 hora.
@@ -341,6 +346,8 @@ void log_avg10_data(const PMDataAveraged * avg) {
  *
  * @param avg Puntero a la estructura `PMDataAveraged` con los datos a registrar.
  */
+
+/*
 void log_avg1h_data(const PMDataAveraged * avg) {
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "%.2f,%.2f,%.2f,%.2f\n", avg->mean, avg->max, avg->min,
@@ -350,7 +357,7 @@ void log_avg1h_data(const PMDataAveraged * avg) {
 
     uart_print("[PROMEDIO 1h] PM2.5 -> media: %.2f, max: %.2f, min: %.2f, std: %.2f\r\n", avg->mean,
                avg->max, avg->min, avg->std);
-}
+}*/
 
 /**
  * @brief Registra en la microSD los datos promediados de PM2.5 cada 24 horas.
@@ -361,6 +368,7 @@ void log_avg1h_data(const PMDataAveraged * avg) {
  * @param avg Puntero a la estructura `PMDataAveraged` con los datos a registrar.
  */
 
+/*
 void log_avg24h_data(const PMDataAveraged * avg) {
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "%.2f,%.2f,%.2f,%.2f\n", avg->mean, avg->max, avg->min,
@@ -371,16 +379,7 @@ void log_avg24h_data(const PMDataAveraged * avg) {
     uart_print("[PROMEDIO 24h] PM2.5 -> media: %.2f, max: %.2f, min: %.2f, std: %.2f\r\n",
                avg->mean, avg->max, avg->min, avg->std);
 }
-
-/**
- * @brief Función de compatibilidad para manejo de ciclos (actualmente no utilizada).
- *
- * Esta función existía para el control basado en conteo de muestras o ciclos,
- * pero ha sido reemplazada por el control temporal basado en RTC.
- */
-void data_logger_increment_cycle(void) {
-    // Ya no se utiliza el contador de ciclos
-}
+*/
 
 /**
  * @brief Verifica si ha transcurrido el tiempo necesario para consolidar promedios de PM2.5.
@@ -395,65 +394,84 @@ void data_logger_increment_cycle(void) {
  *
  * @param dt Puntero a la estructura `ds3231_time_t` con la hora actual.
  */
-static void data_logger_check_time_averages(const ds3231_time_t * dt) {
-    bool finalize10 = false;
-    if (current_window.count > 0) {
-        unsigned int diff = time_diff_seconds(&current_window.start_time, dt);
-        if (diff >= 600 || is_10min_boundary(dt)) {
-            finalize10 = true;
-        }
+static void registrar_promedio_10min(const TimeSyncedAverage * avg10) {
+    EstadisticaPM25 resumen = {.sensor_id = 0, // promedio general
+                               .year = avg10->timestamp.year,
+                               .month = avg10->timestamp.month,
+                               .day = avg10->timestamp.day,
+                               .hour = avg10->timestamp.hour,
+                               .min = avg10->timestamp.min,
+                               .sec = avg10->timestamp.sec,
+                               .bloque_10min = (avg10->timestamp.min / 10),
+                               .pm2_5_promedio = avg10->pm2_5_avg,
+                               .pm2_5_min = avg10->pm2_5_min,
+                               .pm2_5_max = avg10->pm2_5_max,
+                               .pm2_5_std = avg10->pm2_5_std,
+                               .num_validos = avg10->sample_count};
+
+    data_logger_store_avg10_csv(&resumen);
+    uart_print("[AVG10] PM2.5 = %.2f ug/m3 (%u muestras)\r\n", resumen.pm2_5_promedio,
+               resumen.num_validos);
+}
+
+static void registrar_promedio_1h(const ds3231_time_t * dt) {
+    const int count = AVG10_PER_HOUR;
+    float promedio = calculateAverage(hourly_avgs, count);
+    float min = findMinValue(hourly_avgs, count);
+    float max = findMaxValue(hourly_avgs, count);
+    float std = calculateStandardDeviation(hourly_avgs, count);
+
+    TimeSyncedAverage avg1h = {.timestamp = *dt,
+                               .pm2_5_avg = promedio,
+                               .sample_count = count,
+                               .pm2_5_min = min,
+                               .pm2_5_max = max,
+                               .pm2_5_std = std};
+
+    save_temporal_average_to_csv(&avg1h, "/AVG60/avg60.csv");
+    uart_print("[AVG60] PM2.5 = %.2f ug/m3\r\n", promedio);
+
+    daily_avgs[daily_index % AVG1H_PER_DAY] = promedio;
+    daily_index++;
+
+    if (daily_index % AVG1H_PER_DAY == 0) {
+        registrar_promedio_24h(dt);
     }
+}
 
-    if (finalize10) {
-        TimeSyncedAverage avg10 = finalize_temporal_window();
-        hourly_avgs[hourly_index % AVG10_PER_HOUR] = avg10.pm2_5_avg;
-        hourly_index++;
+void registrar_promedio_24h(const ds3231_time_t * dt) {
+    const int count = AVG1H_PER_DAY;
+    float promedio = calculateAverage(daily_avgs, count);
+    float min = findMinValue(daily_avgs, count);
+    float max = findMaxValue(daily_avgs, count);
+    float std = calculateStandardDeviation(daily_avgs, count);
 
-        PMDataAveraged to_print = {avg10.pm2_5_avg, avg10.pm2_5_max, avg10.pm2_5_min,
-                                   avg10.pm2_5_std};
-        log_avg10_data(&to_print);
-        save_temporal_average_to_csv(&avg10, "/AVG10/avg10.csv");
+    TimeSyncedAverage avg24 = {.timestamp = *dt,
+                               .pm2_5_avg = promedio,
+                               .sample_count = count,
+                               .pm2_5_min = min,
+                               .pm2_5_max = max,
+                               .pm2_5_std = std};
 
-        if (hourly_index % AVG10_PER_HOUR == 0) {
-            int count = AVG10_PER_HOUR;
-            PMDataAveraged avg1h;
-            avg1h.mean = calculateAverage(hourly_avgs, count);
-            avg1h.max = findMaxValue(hourly_avgs, count);
-            avg1h.min = findMinValue(hourly_avgs, count);
-            avg1h.std = calculateStandardDeviation(hourly_avgs, count);
+    save_temporal_average_to_csv(&avg24, "/AVG24/avg24.csv");
+    uart_print("[AVG24] PM2.5 = %.2f ug/m3\r\n", promedio);
+}
 
-            log_avg1h_data(&avg1h);
+static void data_logger_check_time_averages(const ds3231_time_t * dt) {
+    if (current_window.count == 0)
+        return;
 
-            daily_avgs[daily_index % AVG1H_PER_DAY] = avg1h.mean;
-            daily_index++;
+    if (time_diff_seconds(&current_window.start_time, dt) < 600 && !is_10min_boundary(dt))
+        return;
 
-            TimeSyncedAverage ta = {.timestamp = *dt,
-                                    .pm2_5_avg = avg1h.mean,
-                                    .sample_count = count,
-                                    .pm2_5_min = avg1h.min,
-                                    .pm2_5_max = avg1h.max,
-                                    .pm2_5_std = avg1h.std};
-            save_temporal_average_to_csv(&ta, "/AVG60/avg60.csv");
+    TimeSyncedAverage avg10 = finalize_temporal_window();
+    hourly_avgs[hourly_index % AVG10_PER_HOUR] = avg10.pm2_5_avg;
+    hourly_index++;
 
-            if (daily_index % AVG1H_PER_DAY == 0) {
-                int dcount = AVG1H_PER_DAY;
-                PMDataAveraged avg24;
-                avg24.mean = calculateAverage(daily_avgs, dcount);
-                avg24.max = findMaxValue(daily_avgs, dcount);
-                avg24.min = findMinValue(daily_avgs, dcount);
-                avg24.std = calculateStandardDeviation(daily_avgs, dcount);
+    registrar_promedio_10min(&avg10);
 
-                log_avg24h_data(&avg24);
-
-                TimeSyncedAverage da = {.timestamp = *dt,
-                                        .pm2_5_avg = avg24.mean,
-                                        .sample_count = dcount,
-                                        .pm2_5_min = avg24.min,
-                                        .pm2_5_max = avg24.max,
-                                        .pm2_5_std = avg24.std};
-                save_temporal_average_to_csv(&da, "/AVG24/avg24.csv");
-            }
-        }
+    if (hourly_index % AVG10_PER_HOUR == 0) {
+        registrar_promedio_1h(dt);
     }
 }
 
@@ -512,102 +530,103 @@ bool data_logger_init(void) {
  *
  * @return `true` si la medición fue almacenada exitosamente.
  */
-bool data_logger_store_measurement(uint8_t sensor_id, ConcentracionesPM valores, float temperatura,
-                                   float humedad) {
-    char timestamp[32];
-    MedicionMP nueva_medicion;
+bool data_logger_store_measurement(uint8_t sensor_id, ConcentracionesPM valores, float temp_amb,
+                                   float hum_amb) {
+    ds3231_time_t now;
+    // if (!rtc_ds3231_get_time(&now)) return false;
+    if (!ds3231_get_datetime(&now))
+        return false;
 
-    // Obtener timestamp actual
-    time_rtc_GetFormattedDateTime(timestamp, sizeof(timestamp));
+    MedicionMP nueva;
 
-    // Completar estructura de medición
-    strcpy(nueva_medicion.timestamp, timestamp);
-    nueva_medicion.sensor_id = sensor_id;
-    nueva_medicion.valores = valores;
-    nueva_medicion.temperatura = temperatura;
-    nueva_medicion.humedad = humedad;
+    nueva.timestamp = now;
+    nueva.bloque_10min = now.min / 10;
+    nueva.sensor_id = sensor_id;
 
-    // Almacenar en buffer de alta frecuencia
-    buffer_circular_agregar(&buffer_alta_frecuencia, &nueva_medicion);
+    nueva.pm1_0 = valores.pm1_0;
+    nueva.pm2_5 = valores.pm2_5;
+    nueva.pm4_0 = valores.pm4_0;
+    nueva.pm10 = valores.pm10;
 
-    // También almacenar en los buffers de hora y día
-    buffer_circular_agregar(&buffer_hora, &nueva_medicion);
-    buffer_circular_agregar(&buffer_dia, &nueva_medicion);
+    nueva.temp_amb = temp_amb;
+    nueva.hum_amb = hum_amb;
+    nueva.temp_cam = 0.0f; // opcional si aún no se mide
+    nueva.hum_cam = 0.0f;
+
+    buffer_circular_agregar(&buffer_alta_frecuencia, &nueva);
+    buffer_circular_agregar(&buffer_hora, &nueva);
+    buffer_circular_agregar(&buffer_dia, &nueva);
 
     return true;
 }
 /**
- * @brief Calcula el promedio de PM2.5 a partir de las últimas N mediciones disponibles.
+ * @brief Calcula el promedio de PM2.5 para un sensor específico.
  *
- * Esta función recorre el buffer circular de alta frecuencia para calcular
- * el valor promedio de PM2.5, opcionalmente filtrando por sensor_id.
+ * Recorre las últimas `num_mediciones` almacenadas en el buffer de alta frecuencia
+ * y calcula el promedio de PM2.5 para el sensor especificado. Si `sensor_id == 0`,
+ * incluye todos los sensores.
  *
- * @param sensor_id ID del sensor a considerar (0 = todos los sensores).
- * @param num_mediciones Número de muestras más recientes a promediar.
- * @return Promedio calculado de PM2.5 o 0 si no hay datos válidos.
+ * @param sensor_id       ID lógico del sensor (0 para todos).
+ * @param num_mediciones  Número máximo de mediciones a considerar.
+ * @return Promedio PM2.5 calculado o 0.0f si no hay datos válidos.
  */
-
 float data_logger_get_average_pm25_id(uint8_t sensor_id, uint32_t num_mediciones) {
     float suma = 0.0f;
     uint32_t contador = 0;
-    // Obtener índice del último dato válido
-    // uint8_t idx_ultimo = (buf->head + BUFFER_10MIN_SIZE - 1) % BUFFER_10MIN_SIZE;
-    // SensorData *ultima_muestra = &buf->buffer[idx_ultimo];
 
-    // Limitar la cantidad de mediciones a usar
+    // Asegurar que no se pidan más mediciones de las disponibles
     if (num_mediciones > buffer_alta_frecuencia.cantidad) {
         num_mediciones = buffer_alta_frecuencia.cantidad;
     }
 
-    // Si no hay mediciones, retornar 0
     if (num_mediciones == 0) {
         return 0.0f;
     }
 
-    // Calcular promedio de las últimas 'num_mediciones'
+    // Recorrer desde la última medición hacia atrás
     for (uint32_t i = 0; i < num_mediciones; i++) {
         uint32_t indice =
             (buffer_alta_frecuencia.inicio + buffer_alta_frecuencia.cantidad - i - 1) %
             buffer_alta_frecuencia.capacidad;
 
-        // Filtrar por sensor_id si es necesario
-        if (sensor_id == 0 || buffer_alta_frecuencia.datos[indice].sensor_id == sensor_id) {
-            suma += buffer_alta_frecuencia.datos[indice].valores.pm2_5;
+        MedicionMP * m = &buffer_alta_frecuencia.datos[indice];
+
+        if (sensor_id == 0 || m->sensor_id == sensor_id) {
+            suma += m->pm2_5;
             contador++;
         }
     }
 
-    // Retornar promedio o 0 si no hay datos
     return (contador > 0) ? (suma / contador) : 0.0f;
 }
 
-/**
- * @brief Calcula estadísticas de PM2.5 para cada sensor a partir de buffers de 10 minutos.
- *
- * @param buffers Vector de buffers circulares de 10 minutos.
- * @param resultados Array de estructuras para almacenar estadísticas (una por sensor).
- * @param max_resultados Largo máximo del array de resultados.
- * @return true si al menos un sensor tuvo datos válidos y se calcularon estadísticas, false en caso
- * contrario.
- */
-#include <math.h> // Asegúrate de tener esto incluido
+#include <math.h>
+#include <string.h> // para memset si se quiere limpiar antes
 
-bool data_logger_estadistica_10min_pm25(BufferCircularSensor * buffers,
+/**
+ * @brief Calcula estadísticas combinadas de PM2.5 para los buffers de 10 minutos de todos los
+ * sensores.
+ *
+ * @param buffers Arreglo de buffers circulares por sensor (uno por cada SPS30).
+ * @param resultado Puntero a estructura donde se almacenará el resultado estadístico.
+ * @return true si se calcularon datos válidos, false si no hubo mediciones.
+ */
+bool data_logger_estadistica_10min_pm25(const BufferCircularSensor * buffers,
                                         EstadisticaPM25 * resultado) {
     if (!buffers || !resultado)
         return false;
 
     float suma = 0.0f, min = 10000.0f, max = -10000.0f;
-    float valores[BUFFER_10MIN_SIZE * MAX_SENSORES_SPS30]; // espacio para combinar todos
+    float valores[BUFFER_10MIN_SIZE * MAX_SENSORES_SPS30];
     uint16_t n = 0;
 
     for (uint8_t i = 0; i < MAX_SENSORES_SPS30; ++i) {
-        BufferCircularSensor * buf = &buffers[i];
+        const BufferCircularSensor * buf = &buffers[i];
         if (buf->count == 0)
             continue;
 
         for (uint8_t j = 0; j < buf->count; ++j) {
-            uint8_t idx = (buf->head + BUFFER_10MIN_SIZE - j - 1) % BUFFER_10MIN_SIZE;
+            uint8_t idx = (buf->head + j) % BUFFER_10MIN_SIZE;
             float val = buf->buffer[idx].pm2_5;
 
             valores[n++] = val;
@@ -629,24 +648,23 @@ bool data_logger_estadistica_10min_pm25(BufferCircularSensor * buffers,
         float diff = valores[i] - promedio;
         suma_cuadrados += diff * diff;
     }
-
     float stddev = (n > 1) ? sqrtf(suma_cuadrados / (n - 1)) : 0.0f;
 
-    // Tomar fecha/hora de la última muestra del último sensor que tenía datos
+    // Buscar última muestra válida para obtener el timestamp
     for (int8_t i = MAX_SENSORES_SPS30 - 1; i >= 0; --i) {
-        if (buffers[i].count > 0) {
-            uint8_t idx_ultimo = (buffers[i].head + BUFFER_10MIN_SIZE - 1) % BUFFER_10MIN_SIZE;
-            const SensorData * muestra = &buffers[i].buffer[idx_ultimo];
+        const BufferCircularSensor * buf = &buffers[i];
+        if (buf->count > 0) {
+            uint8_t idx_ultimo = (buf->head + buf->count - 1) % BUFFER_10MIN_SIZE;
+            const MedicionMP * muestra = &buf->buffer[idx_ultimo];
 
-            *resultado = (EstadisticaPM25){.sensor_id = 0, // 0: estadística combinada
-                                           .year = muestra->year,
-                                           .month = muestra->month,
-                                           .day = muestra->day,
-                                           .hour = muestra->hour,
-                                           .min = muestra->min,
-                                           .sec = muestra->sec,
+            *resultado = (EstadisticaPM25){.sensor_id = 0, // Combinado
+                                           .year = muestra->timestamp.year,
+                                           .month = muestra->timestamp.month,
+                                           .day = muestra->timestamp.day,
+                                           .hour = muestra->timestamp.hour,
+                                           .min = muestra->timestamp.min,
+                                           .sec = muestra->timestamp.sec,
                                            .bloque_10min = muestra->bloque_10min,
-
                                            .pm2_5_promedio = promedio,
                                            .pm2_5_min = min,
                                            .pm2_5_max = max,
@@ -656,7 +674,7 @@ bool data_logger_estadistica_10min_pm25(BufferCircularSensor * buffers,
         }
     }
 
-    return false; // Fallback, no se encontró muestra válida
+    return false;
 }
 
 /**
@@ -666,72 +684,66 @@ bool data_logger_estadistica_10min_pm25(BufferCircularSensor * buffers,
  * - Cantidad de muestras almacenadas en cada buffer (alta frecuencia, horario, diario).
  * - Las 3 últimas mediciones almacenadas con su timestamp, sensor ID y PM2.5.
  */
-void data_logger_print_summary() {
-    char buffer[256];
+void data_logger_print_summary(void) {
+    char buffer[128];
 
     // Imprimir encabezado
     snprintf(buffer, sizeof(buffer),
              "\n--- Resumen de Datos Almacenados ---\n"
-             "Buffer alta frecuencia: %lu/%lu muestras\n"
-             "Buffer horario: %lu/%lu muestras\n"
-             "Buffer diario: %lu/%lu muestras\n",
+             "Buffer alta frecuencia: %u/%u muestras\n"
+             "Buffer horario:         %u/%u muestras\n"
+             "Buffer diario:          %u/%u muestras\n",
              buffer_alta_frecuencia.cantidad, buffer_alta_frecuencia.capacidad,
              buffer_hora.cantidad, buffer_hora.capacidad, buffer_dia.cantidad,
              buffer_dia.capacidad);
-
     uart_print("%s", buffer);
 
-    // Imprimir últimas mediciones si hay datos
+    // Mostrar las últimas 3 mediciones si hay datos
     if (buffer_alta_frecuencia.cantidad > 0) {
-        uart_print("\nÚltimas 3 mediciones:\n");
+        uart_print("\nÚltimas 3 mediciones (PM2.5):\n");
 
-        for (uint32_t i = 0; i < 3 && i < buffer_alta_frecuencia.cantidad; i++) {
-            uint32_t indice =
-                (buffer_alta_frecuencia.inicio + buffer_alta_frecuencia.cantidad - i - 1) %
+        for (uint8_t i = 0; i < 3 && i < buffer_alta_frecuencia.cantidad; i++) {
+            uint16_t idx =
+                (buffer_alta_frecuencia.inicio + buffer_alta_frecuencia.cantidad - 1 - i) %
                 buffer_alta_frecuencia.capacidad;
 
-            MedicionMP * medicion = &buffer_alta_frecuencia.datos[indice];
+            MedicionMP * med = &buffer_alta_frecuencia.datos[idx];
 
-            snprintf(buffer, sizeof(buffer), "[%s] Sensor %d: PM2.5=%.2f ug/m3\n",
-                     medicion->timestamp, medicion->sensor_id, medicion->valores.pm2_5);
-
+            snprintf(buffer, sizeof(buffer),
+                     "[%04u-%02u-%02u %02u:%02u:%02u] Sensor %d: %.2f µg/m³\n", med->timestamp.year,
+                     med->timestamp.month, med->timestamp.day, med->timestamp.hour,
+                     med->timestamp.min, med->timestamp.sec, med->sensor_id, med->pm2_5);
             uart_print("%s", buffer);
         }
     }
 }
 
 /**
- * @brief Imprime un resumen por UART del estado actual de los buffers de datos.
- *
- * Muestra:
- * - Cantidad de muestras almacenadas en cada buffer (alta frecuencia, horario, diario).
- * - Las 3 últimas mediciones almacenadas con su timestamp, sensor ID y PM2.5.
+ * @brief Imprime un resumen detallado por UART del estado de `buffer_alta_frecuencia`.
  */
 void data_logger_print_value(void) {
-
-    BufferCircular buffer_i = buffer_alta_frecuencia;
     char buffer[256];
+    const BufferCircular * buf = &buffer_alta_frecuencia;
 
     // Imprimir encabezado
     snprintf(buffer, sizeof(buffer),
              "\n--- Resumen de Datos Almacenados ---\n"
-             "Buffer: %lu/%lu muestras\n",
-             buffer_i.cantidad, buffer_i.capacidad);
-
+             "Buffer alta frecuencia: %u/%u muestras\n",
+             buf->cantidad, buf->capacidad);
     uart_print("%s", buffer);
 
-    // Imprimir últimas mediciones si hay datos
-    if (buffer_i.cantidad > 0) {
-        uart_print("\nultimas 3 mediciones:\n");
+    // Mostrar últimas mediciones
+    if (buf->cantidad > 0) {
+        uart_print("\nÚltimas 3 mediciones:\n");
 
-        for (uint32_t i = 0; i < buffer_i.cantidad; i++) {
-            uint32_t indice = (buffer_i.inicio + buffer_i.cantidad - i - 1) % buffer_i.capacidad;
+        for (uint8_t i = 0; i < 3 && i < buf->cantidad; i++) {
+            uint16_t idx = (buf->inicio + buf->cantidad - 1 - i) % buf->capacidad;
+            const MedicionMP * m = &buf->datos[idx];
 
-            MedicionMP * medicion = &buffer_i.datos[indice];
-
-            snprintf(buffer, sizeof(buffer), "[%s] Sensor %d: PM2.5=%.2f ug/m3\n",
-                     medicion->timestamp, medicion->sensor_id, medicion->valores.pm2_5);
-
+            snprintf(buffer, sizeof(buffer),
+                     "[%04u-%02u-%02u %02u:%02u:%02u] Sensor %u: PM2.5 = %.2f µg/m³\n",
+                     m->timestamp.year, m->timestamp.month, m->timestamp.day, m->timestamp.hour,
+                     m->timestamp.min, m->timestamp.sec, m->sensor_id, m->pm2_5);
             uart_print("%s", buffer);
         }
     }
@@ -1211,31 +1223,34 @@ uint8_t data_logger_get_count(uint8_t sensor_id) {
 }
 
 /**
- * @brief Inserta una muestra de datos en el buffer circular de 10 minutos.
+ * @brief Guarda los datos de un sensor en el buffer circular de 10 minutos.
  *
- * Esta función guarda una estructura `SensorData` en el buffer correspondiente
- * al sensor indicado por `sensor_id`. Se utiliza una política de sobreescritura
- * controlada cuando el buffer alcanza su capacidad máxima (`BUFFER_10MIN_SIZE`).
+ * Esta función recibe una estructura `MedicionMP` completa, que incluye
+ * identificador del sensor, datos de PM, temperatura, humedad y timestamp,
+ * y lo inserta en el buffer correspondiente.
  *
- * Se espera que `sensor_id` comience en 1 y esté dentro del rango válido definido
- * por `MAX_SENSORES_SPS30`. Internamente, se usa un índice base cero.
- *
- * @param data Estructura `SensorData` que contiene PM, temperatura, humedad y timestamp.
- * @return `true` si la muestra fue almacenada correctamente. `false` si el sensor_id está fuera de
- * rango.
- *
- * @note Si el buffer está lleno, el nuevo dato sobrescribe el más antiguo. Se imprime advertencia
- * por UART.
- *
- * @see SensorData
+ * @param buffer Puntero al buffer circular destino.
+ * @param data Estructura con los datos del sensor.
+ * @return true si se guardaron correctamente, false si ocurrió un error (e.g. overflow).
  */
 
-bool buffer_guardar(SensorBufferTemp * buffer) {
+/**
+ * @brief Guarda los datos del buffer general en los buffers por sensor.
+ *
+ * Esta función distribuye los datos de `buffer` en los buffers individuales
+ * `buffers_10min` en función del `sensor_id`.
+ *
+ * @param buffer Puntero al buffer circular con datos a guardar.
+ * @return true si al menos un dato se almacenó correctamente, false en caso de error.
+ */
+bool buffer_guardar(BufferCircular * buffer) {
     if (!buffer || buffer->cantidad == 0)
         return false;
 
-    for (uint8_t i = 0; i < buffer->cantidad; ++i) {
-        SensorData * data = &buffer->datos[i];
+    bool al_menos_uno_guardado = false;
+
+    for (uint16_t i = 0; i < buffer->cantidad; ++i) {
+        const MedicionMP * data = &buffer->datos[i];
 
         if (data->sensor_id == 0 || data->sensor_id > MAX_SENSORES_SPS30) {
             uart_print("[ERROR] buffer_guardar: ID de sensor fuera de rango (%d)\r\n",
@@ -1255,10 +1270,15 @@ bool buffer_guardar(SensorBufferTemp * buffer) {
             uart_print("[WARN] buffer_guardar: sobreescritura en buffer sensor %d\r\n",
                        data->sensor_id);
         }
+
+        al_menos_uno_guardado = true;
     }
 
-    // opcional: reiniciar buffer->cantidad = 0;
-    return true;
+    // Opcional: limpiar el buffer de entrada luego de transferir
+    buffer->cantidad = 0;
+    buffer->inicio = 0;
+
+    return al_menos_uno_guardado;
 }
 /*
 bool data_logger_store_sensor_data(const SensorData * data) {
@@ -1286,25 +1306,29 @@ bool data_logger_store_sensor_data(const SensorData * data) {
 }*/
 
 /**
- * @brief Guarda múltiples mediciones desde un buffer temporal en los buffers circulares
- * correspondientes.
- * @param temp_buffer Puntero al buffer temporal con lecturas de múltiples sensores.
- * @param buffers_destino Arreglo de buffers circulares, uno por sensor.
- * @return true si todas las mediciones se guardaron correctamente, false si al menos una falló.
+ * @brief Guarda múltiples mediciones en los buffers por sensor.
+ *
+ * @param temp_data        Puntero al arreglo de mediciones (`MedicionMP`).
+ * @param num_mediciones   Cantidad de elementos válidos en el arreglo.
+ * @param buffers_destino  Arreglo de buffers circulares por sensor.
+ * @return true si se almacenaron todas correctamente, false si hubo al menos un error.
  */
-bool data_logger_store_sensor_data(SensorBufferTemp * temp_buffer,
+bool data_logger_store_sensor_data(const MedicionMP * temp_data, size_t num_mediciones,
                                    BufferCircularSensor * buffers_destino) {
-    if (!temp_buffer || !buffers_destino || temp_buffer->cantidad == 0)
+    if (!temp_data || !buffers_destino || num_mediciones == 0) {
+        uart_print("[ERROR] Parámetros inválidos en data_logger_store_sensor_data()\r\n");
         return false;
+    }
 
-    bool ok = true;
+    bool todo_ok = true;
 
-    for (uint8_t i = 0; i < temp_buffer->cantidad; ++i) {
-        SensorData * d = &temp_buffer->datos[i];
+    for (size_t i = 0; i < num_mediciones; ++i) {
+        const MedicionMP * d = &temp_data[i];
 
         if (d->sensor_id == 0 || d->sensor_id > MAX_SENSORES_SPS30) {
-            uart_print("[ERROR] ID de sensor inválido en buffer_temp\r\n");
-            ok = false;
+            uart_print("[ERROR] ID de sensor inválido (%d) en medición #%u\r\n", d->sensor_id,
+                       (unsigned)i);
+            todo_ok = false;
             continue;
         }
 
@@ -1317,13 +1341,18 @@ bool data_logger_store_sensor_data(SensorBufferTemp * temp_buffer,
         if (dest->count < BUFFER_10MIN_SIZE) {
             dest->count++;
         } else {
-            uart_printf("[WARN] buffer sensor %d sobreescribiendo datos\r\n", d->sensor_id);
+            uart_print("[WARN] Sobreescritura en buffer de sensor %d\r\n", d->sensor_id);
         }
     }
 
-    return ok;
+    return todo_ok;
 }
 
+/**
+ * @brief Limpia todos los buffers circulares por sensor.
+ *
+ * @param buffers Arreglo de buffers, uno por sensor.
+ */
 void data_logger_buffer_limpiar_todos(BufferCircularSensor * buffers) {
     if (!buffers)
         return;
@@ -1334,7 +1363,6 @@ void data_logger_buffer_limpiar_todos(BufferCircularSensor * buffers) {
         memset(buffers[i].buffer, 0, sizeof(buffers[i].buffer));
     }
 }
-
 /* === Función principal: cálculo periódico basado en RTC ===================================== */
 
 #if defined(UNIT_TEST) || defined(UNIT_TESTING)

@@ -34,9 +34,11 @@
 
 /* === Headers files inclusions =============================================================== */
 
+#include "config_global.h"
 #include "sensor.h"
 #include "sps30_multi.h"
 #include "time_rtc.h"
+#include "dht22_config.h"
 #include "uart.h"
 #include "DHT22.h" // si usas DHT22 u otro sensor ambiental
 #include "usart.h"
@@ -45,7 +47,9 @@
 #include "DHT22.h"
 #include "proceso_observador.h"
 #include "sps30_comm.h"
+#include "shdlc.h"
 #include "rtc_ds3231_for_stm32_hal.h" // para ds3231_get_datetime()
+#include <string.h>
 
 /* === Macros definitions ====================================================================== */
 
@@ -129,11 +133,11 @@ SensorStatus sensor_leer_datos(void) {
 }
 */
 
-SensorStatus sensor_leer_datos(SensorBufferTemp * buffer) {
-    if (buffer == NULL)
-        return SENSOR_ERROR;
+// #define NUM_SENSORES_SPS30 3
 
-    buffer->cantidad = 0;
+SensorStatus sensor_leer_datos(MedicionMP * datos_array) {
+    if (datos_array == NULL)
+        return SENSOR_ERROR;
 
     DHT22_Data sensorData;
     bool dht_ok = true;
@@ -141,7 +145,7 @@ SensorStatus sensor_leer_datos(SensorBufferTemp * buffer) {
     float temp_amb = -100.0f, hum_amb = -1.0f;
     float temp_cam = -100.0f, hum_cam = -1.0f;
 
-    // Leer DHT22 ambiente
+    // Leer DHT ambiente
     if (DHT22_Read(&dhtA, &sensorData) == DHT22_OK) {
         temp_amb = sensorData.temperatura;
         hum_amb = sensorData.humedad;
@@ -149,7 +153,7 @@ SensorStatus sensor_leer_datos(SensorBufferTemp * buffer) {
         dht_ok = false;
     }
 
-    // Leer DHT22 cámara
+    // Leer DHT cámara
     if (DHT22_Read(&dhtB, &sensorData) == DHT22_OK) {
         temp_cam = sensorData.temperatura;
         hum_cam = sensorData.humedad;
@@ -164,44 +168,37 @@ SensorStatus sensor_leer_datos(SensorBufferTemp * buffer) {
         uart_print("[WARN] RTC no respondió, se colocaron ceros en fecha/hora.\r\n");
     }
 
-    // Armar string fecha/hora
     char datetime_buffer[32];
     snprintf(datetime_buffer, sizeof(datetime_buffer), "%04u-%02u-%02u %02u:%02u:%02u", dt.year,
              dt.month, dt.day, dt.hour, dt.min, dt.sec);
 
-    // Leer SPS30
-    for (uint8_t i = 0; i < sensores_disponibles && buffer->cantidad < NUM_SENSORES_SPS30; ++i) {
+    uint8_t count = 0;
+
+    for (uint8_t i = 0; i < sensores_disponibles && count < NUM_SENSORES_SPS30; ++i) {
         ConcentracionesPM pm =
             sensores_sps30[i].sensor.get_concentrations(&sensores_sps30[i].sensor);
 
         if (pm.pm2_5 < 0.0f || pm.pm2_5 > 1000.0f)
             continue;
 
-        SensorData d = {.year = dt.year,
-                        .month = dt.month,
-                        .day = dt.day,
-                        .hour = dt.hour,
-                        .min = dt.min,
-                        .sec = dt.sec,
-                        .bloque_10min = dt.min / 10,
-
-                        .sensor_id = sensores_sps30[i].id,
-                        .pm1_0 = pm.pm1_0,
-                        .pm2_5 = pm.pm2_5,
-                        .pm4_0 = pm.pm4_0,
-                        .pm10 = pm.pm10,
-                        .temp_amb = temp_amb,
-                        .hum_amb = hum_amb,
-                        .temp_cam = temp_cam,
-                        .hum_cam = hum_cam};
-
-        buffer->datos[buffer->cantidad++] = d;
+        MedicionMP * m = &datos_array[count++];
+        m->timestamp = dt;
+        m->bloque_10min = dt.min / 10;
+        m->sensor_id = sensores_sps30[i].id;
+        m->pm1_0 = pm.pm1_0;
+        m->pm2_5 = pm.pm2_5;
+        m->pm4_0 = pm.pm4_0;
+        m->pm10 = pm.pm10;
+        m->temp_amb = temp_amb;
+        m->hum_amb = hum_amb;
+        m->temp_cam = temp_cam;
+        m->hum_cam = hum_cam;
 
         proceso_observador_3PM_2TH(&sensores_sps30[i].sensor, sensores_sps30[i].id, datetime_buffer,
                                    temp_amb, hum_amb, temp_cam, hum_cam);
     }
 
-    return (buffer->cantidad > 0 && dht_ok) ? SENSOR_OK : SENSOR_ERROR;
+    return (count > 0 && dht_ok) ? SENSOR_OK : SENSOR_ERROR;
 }
 
 /**
@@ -228,20 +225,28 @@ uint8_t sensor_get_all(SensorData * out_array, uint8_t max_len) {
         // Se colocan ceros explícitamente
         memset(&dt, 0, sizeof(ds3231_time_t));
     }
-
-    float temp_amb = 0.0f, hum_amb = 0.0f;
-    float temp_cam = 0.0f, hum_cam = 0.0f;
+    /*
+        float temp_amb = 0.0f, hum_amb = 0.0f;
+        float temp_cam = 0.0f, hum_cam = 0.0f;
+      */
+    DHT22_Data sensorData;
+    float temp_amb = -99.9f;
+    float hum_amb = -99.9f;
+    float temp_cam = -99.9f;
+    float hum_cam = -99.9f;
 
     // Lectura sensores ambientales si están disponibles
-    if (!DHT22_ReadData(&temp_amb, &hum_amb)) {
-        temp_amb = -100.0f;
-        hum_amb = -1.0f;
+    if (!DHT22_Read(&dhtA, &sensorData) == DHT22_OK) {
+        temp_amb = sensorData.temperatura;
+        hum_amb = sensorData.humedad;
+        uart_print("Ambiente: Temp: %.1f C, Hum: %.1f%%\n", temp_amb, hum_amb);
     }
 
     // Opcional: sensores internos para cámara
-    if (!DHT22_Cam_ReadData(&temp_cam, &hum_cam)) {
-        temp_cam = -100.0f;
-        hum_cam = -1.0f;
+    if (DHT22_Read(&dhtB, &sensorData) == DHT22_OK) {
+        temp_cam = sensorData.temperatura;
+        hum_cam = sensorData.humedad;
+        uart_print("Camara: Temp: %.1f C, Hum: %.1f%%\n", temp_cam, hum_cam);
     }
 
     uint8_t count = 0;

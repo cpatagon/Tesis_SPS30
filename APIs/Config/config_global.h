@@ -1,5 +1,5 @@
 /*
- * Nombre del archivo: config_sistema.h
+ * Nombre del archivo: config_global.h
  * Descripción: [Breve descripción del archivo]
  * Autor: lgomez
  * Creado en: 25-06-2025
@@ -22,13 +22,32 @@
  * SPDX-License-Identifier: GPL-3.0-only
  *
  */
-#ifndef CONFIG_CONFIG_SISTEMA_H_
-#define CONFIG_CONFIG_SISTEMA_H_
+#ifndef CONFIG_CONFIG_GLOBAL_H_
+#define CONFIG_CONFIG_GLOBAL_H_
 /** @file
  ** @brief
  **/
 
 /* === Headers files inclusions ================================================================ */
+
+// === Configuración de estructura de datos principal ===
+#include "data_types.h" // SensorData, EstadisticaPM25, etc.
+
+// === Configuraciones de sensores ===
+#include "sps30_config.h" // Parámetros SPS30
+#include "dht22_config.h" // Parámetros DHT22
+
+// === Configuración de tiempo y RTC ===
+#include "rtc_config.h" // RTC DS3231 y tipos de tiempo
+
+// === Configuración de buffers ===
+#include "buffers_config.h" // Tamaños y definiciones de buffers
+
+// === Configuración del sistema ===
+#include "config_sistema.h" // Pines LED, modo debug, etc.
+
+// === Configuración de mensajes ===
+#include "config_mensaje.h" // Mensajes UART, encabezados CSV/JSON
 
 /* === Cabecera C++ ============================================================================ */
 #ifdef __cplusplus
@@ -36,39 +55,6 @@ extern "C" {
 #endif
 
 /* === Public macros definitions =============================================================== */
-
-/** Unidades estándar de las mediciones */
-#define UNIT_PM_CONCENTRATION "ug/m3"   ///< Unidades de concentración de partículas
-#define UNIT_TEMPERATURE      "Celsius" ///< Temperatura en grados Celsius
-#define UNIT_HUMIDITY         "%%RH"    ///< Humedad relativa en porcentaje
-
-/** Información de ubicación del sistema */
-#define LOCATION_NAME      "Cerrillos, Santiago, Chile"
-#define LOCATION_LATITUDE  -33.4940f
-#define LOCATION_LONGITUDE -70.7260f
-#define LOCATION_COORDS    "-33.495, -70.720"
-
-/** Cantidad de sensores de MP instalados */
-#define NUM_SENSORS_SPS30  3
-#define NUM_SENSORES_SPS30 3
-#define MAX_SENSORES_SPS30 3
-
-/** Longitud máxima para nombres y seriales */
-#define SENSOR_NAME_MAX_LEN   32
-#define SENSOR_SERIAL_MAX_LEN 32
-
-// Nuevas constantes basadas en tiempo real
-#define MAX_SAMPLES_PER_10MIN       60 /**< Muestras de 10 s en 10 minutos */
-#define AVG10_PER_HOUR              6  /**< Cantidad de ventanas de 10 min en 1 hora */
-#define AVG1H_PER_DAY               24 /**< Cantidad de promedios horarios en 24 h */
-
-#define BUFFER_SIZE_MSG_PM_FORMAT   256
-#define BUFFER_SIZE_MSG_ERROR_FALLO 96
-
-#define NUM_REINT                   3
-#define CONC_MIN_PM                 0.0f
-#define CONC_MAX_PM                 1000.0f
-#define DELAY_MS_SPS30_LECTURA      5000
 
 /* === Public data type declarations =========================================================== */
 
@@ -81,4 +67,4 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-#endif /* CONFIG_CONFIG_SISTEMA_H_ */
+#endif /* CONFIG_CONFIG_GLOBAL_H_ */

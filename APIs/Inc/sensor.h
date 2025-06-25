@@ -38,6 +38,7 @@
  * ================================================================ */
 
 #include "DHT22.h"
+#include "data_types.h"
 #include "sps30_multi.h"
 #include "stm32f4xx_hal.h"
 
@@ -59,6 +60,7 @@ extern "C" {
 
 typedef enum { SENSOR_OK = 0, SENSOR_ERROR = -1 } SensorStatus;
 
+/*
 typedef struct {
     // 🕓 Timestamp primero
     uint16_t year;
@@ -85,11 +87,7 @@ typedef struct {
     float temp_cam;
     float hum_cam;
 } SensorData;
-
-typedef struct {
-    SensorData datos[NUM_SENSORES_SPS30];
-    uint8_t cantidad;
-} SensorBufferTemp;
+*/
 
 /* === Sensores de Material Particulado (SPS30)
  * ============================================= */
@@ -100,8 +98,8 @@ extern SPS30 sps30_B;
 extern SPS30 sps30_C;
 
 /* Estructuras de sensores DHT22 */
-extern DHT22_HandleTypeDef dhtA;
-extern DHT22_HandleTypeDef dhtB;
+extern DHT22_HandleTypeDef dhtA; // sensor ambiente
+extern DHT22_HandleTypeDef dhtB; // sensor camara
 
 /* Arreglo de sensores SPS30 y contador */
 extern SensorSPS30 sensores_sps30[NUM_SENSORES_SPS30];
@@ -126,18 +124,21 @@ void sensors_init_all(void);
  * @param max_len Tamaño máximo del arreglo.
  * @return Número de datos válidos obtenidos (0 si fallaron todas).
  */
-SensorStatus sensor_leer_datos(SensorBufferTemp * buffer);
+SensorStatus sensor_leer_datos(MedicionMP * datos_array);
 
 /**
- * @brief Guarda los datos de un sensor en el buffer circular de 10 minutos.
+ * @brief Obtiene todos los datos actuales de sensores SPS30 y variables ambientales.
  *
- * Esta función recibe una estructura `SensorData` completa, que incluye
- * identificador del sensor, datos de PM, temperatura, humedad y timestamp,
- * y lo inserta en el buffer correspondiente.
+ * Esta función recorre todos los sensores SPS30 disponibles y almacena sus concentraciones
+ * junto con la hora actual y datos de temperatura y humedad (ambiente y cámara) en el arreglo de
+ * salida.
  *
- * @param data Estructura con los datos del sensor.
- * @return true si se guardaron correctamente, false si ocurrió un error (e.g. overflow).
+ * @param[out] out_array Arreglo de estructuras SensorData a llenar.
+ * @param[in]  max_len   Cantidad máxima de elementos a llenar en out_array.
+ * @return Número de sensores leídos correctamente.
  */
+
+uint8_t sensor_get_all(SensorData * out_array, uint8_t max_len);
 
 /* === End of documentation
  * ==================================================================== */

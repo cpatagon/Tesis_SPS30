@@ -42,7 +42,7 @@
 static Estado_Observador estado_actual = ESTADO_REPOSO;
 static Estado_Observador estado_anterior = ESTADO_REPOSO;
 
-SensorData buffer_temp[MAX_SENSORES_SPS30];
+TemporalBuffer buffer_temp;
 uint8_t cantidad = 0;
 
 /* === Private variable declarations =========================================================== */

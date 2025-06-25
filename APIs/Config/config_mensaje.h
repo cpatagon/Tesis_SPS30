@@ -91,7 +91,7 @@ extern "C" {
                                                           obtener el tamaño de                    \
                                                           la SD */
 #define MSN_SD_TOTAL_SIZE                                                                          \
-    "SD CARD tamaño Total: \t%luKB\n" /**< Mensaje con el tamaño total de la SD                   \
+    "SD CARD tamano Total: \t%luKB\n" /**< Mensaje con el tamaño total de la SD                   \
                                        */
 #define MSN_SD_FREE_SIZE                                                                           \
     "SD CARD Free Space: \t%luKB\n\n" /**< Mensaje con el espacio libre de la SD                   \
