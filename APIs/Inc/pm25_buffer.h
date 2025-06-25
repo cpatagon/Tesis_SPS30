@@ -110,6 +110,11 @@ void pm25_buffer_reset(uint8_t sensor_id);
  */
 uint8_t data_logger_get_count(uint8_t sensor_id);
 
+/**
+ * @brief Limpia todos los buffers de PM2.5 (todos los sensores).
+ */
+void pm25_rbuffer_limpiar(void);
+
 /* === End of documentation ==================================================================== */
 
 #ifdef __cplusplus

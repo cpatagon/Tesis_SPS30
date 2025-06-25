@@ -34,6 +34,8 @@
 /* === Headers files inclusions =============================================================== */
 
 #include "pm25_buffer.h"
+#include "data_logger.h"
+#include "mp_sensors_info.h"
 #include <math.h>
 #include <string.h> // memset
 
@@ -115,6 +117,12 @@ void pm25_buffer_calcular_estadisticas(uint8_t sensor_id, EstadisticasPM * stats
  */
 void pm25_buffer_reset(uint8_t sensor_id) {
     // No implementado aquí. Se espera que data_logger tenga función de limpieza.
+}
+
+void pm25_rbuffer_limpiar(void) {
+    for (uint8_t i = 0; i < NUM_SENSORS_SPS30; ++i) {
+        pm25_buffer_reset(i);
+    }
 }
 
 /* === End of documentation ==================================================================== */

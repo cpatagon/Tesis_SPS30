@@ -65,6 +65,30 @@ static bool rtc_external_available(void) {
 }
 
 /**
+ * @brief Indica si el RTC (interno o externo) está operativo.
+ * @return true si el RTC está funcionando correctamente.
+ */
+
+bool rtc_esta_activo(void) {
+    if (active_rtc == RTC_SOURCE_EXTERNAL) {
+        ds3231_time_t dt;
+        if (!ds3231_get_datetime(&dt)) {
+            return false;
+        }
+        // Validación simple de rango
+        return (dt.hour < 24 && dt.min < 60 && dt.sec < 60);
+    } else if (active_rtc == RTC_SOURCE_INTERNAL) {
+        RTC_TimeTypeDef sTime;
+        if (HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK) {
+            return false;
+        }
+        return (sTime.Hours < 24 && sTime.Minutes < 60 && sTime.Seconds < 60);
+    }
+
+    return false; // Si por alguna razón no hay RTC definido
+}
+
+/**
  * @brief Inicializa automáticamente el RTC (externo o interno), y si está habilitado,
  *        configura la hora con el timestamp de compilación en caso de ser necesario.
  */
@@ -171,25 +195,37 @@ bool RTC_ReceiveTimeFromTerminal(UART_HandleTypeDef * huart) {
 /**
  * @brief Verifica si hubo un cambio de minuto y actualiza el estado de adquisición en base al RTC.
  */
+static uint8_t bloque_anterior = 255;
+
 void time_rtc_ActualizarEstadoPorTiempo(void) {
+    char debug_buf[64];
+
     ds3231_time_t dt;
     if (!ds3231_get_datetime(&dt)) {
         uart_print("[ERROR] No se pudo leer el RTC para actualizar el estado.\r\n");
         return;
     }
 
-    if (dt.min != minuto_anterior) {
-        minuto_anterior = dt.min;
+    uint8_t bloque_actual = dt.min / 10; // Divide los minutos en bloques: 0,1,2,...,5
+    snprintf(debug_buf, sizeof(debug_buf), "Minuto RTC: %02u -> BLOQUE: %u\r\n", dt.min,
+             bloque_actual);
+    uart_print(debug_buf);
 
-        if (dt.min % 10 == 0) {
-            proceso_observador_set_estado(ESTADO_CALCULANDO_10MIN);
-            uart_print("[ESTADO] Cambio a CALCULANDO_10MIN\r\n");
-        } else {
-            proceso_observador_set_estado(ESTADO_ALMACENANDO_10MIN);
-            uart_print("[ESTADO] Cambio a ALMACENANDO_10MIN\r\n");
-        }
+    if (bloque_actual != bloque_anterior) {
+        bloque_anterior = bloque_actual;
+        //      proceso_observador_set_estado(ESTADO_CALCULANDO_10MIN);
+        uart_print("[ESTADO] Cambio a CALCULANDO_10MIN\r\n");
+    } else {
+        //        proceso_observador_set_estado(ESTADO_ALMACENANDO_10MIN);
+        uart_print("[ESTADO] Cambio a ALMACENANDO_10MIN\r\n");
     }
 }
+
+/**
+ * @brief Evalúa la hora actual y cambia el estado del sistema según límites de tiempo (cada 10min,
+ * hora, día).
+ */
+void time_rtc_ActualizarEstadoPorTiempo(void);
 
 /* === Wrappers de compatibilidad =================================================== */
 
@@ -203,4 +239,26 @@ void time_rtc_Init(void) {
 
 void time_rtc_GetFormattedDateTime(char * buffer, size_t len) {
     rtc_get_time(buffer, len);
+}
+
+/**
+ * @brief Verifica si hubo un cambio de bloque de 10 minutos desde la última llamada.
+ * @return true si el bloque cambió, false si se mantiene igual.
+ */
+bool time_rtc_hay_cambio_bloque(void) {
+    ds3231_time_t dt;
+
+    if (!ds3231_get_datetime(&dt)) {
+        uart_print("[WARN] RTC no respondió en time_rtc_hay_cambio_bloque()\r\n");
+        return false;
+    }
+
+    uint8_t bloque_actual = dt.min / 10;
+
+    if (bloque_actual != bloque_anterior) {
+        bloque_anterior = bloque_actual;
+        return true;
+    }
+
+    return false;
 }

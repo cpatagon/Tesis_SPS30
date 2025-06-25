@@ -52,6 +52,12 @@ extern RTC_Source active_rtc;
 bool rtc_auto_init(void);
 
 /**
+ * @brief Indica si el RTC (interno o externo) está operativo.
+ * @return true si el RTC está funcionando correctamente.
+ */
+bool rtc_esta_activo(void);
+
+/**
  * @brief Obtiene la hora actual formateada desde el RTC activo.
  * @param buffer Puntero al buffer donde se guardará la cadena de fecha/hora.
  * @param len Longitud máxima del buffer.
@@ -85,5 +91,13 @@ bool RTC_ReceiveTimeFromTerminal(UART_HandleTypeDef * huart);
  * @brief Establece una fecha y hora fija para pruebas del RTC.
  */
 void rtc_set_test_time(void);
+
+/**
+ * @brief Evalúa la hora actual y cambia el estado del sistema según límites de tiempo (cada 10min,
+ * hora, día).
+ */
+void time_rtc_ActualizarEstadoPorTiempo(void);
+
+bool time_rtc_hay_cambio_bloque(void);
 
 #endif /* TIME_RTC_H */

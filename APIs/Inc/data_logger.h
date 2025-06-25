@@ -42,6 +42,8 @@
 #include "shdlc.h" // Para acceder a ConcentracionesPM
 #include "uart.h"
 #include "pm25_buffer.h"
+#include "data_logger.h"
+#include "sensor.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -63,6 +65,7 @@ extern "C" {
 #define BUFFER_HOURLY_SIZE    24  /**< 24 muestras = 1 por cada 10 minutos en una hora */
 #define BUFFER_DAILY_SIZE     30  /**< 30 muestras = 1 cada hora durante 30 horas (aprox. 1 día) */
 #define CSV_LINE_BUFFER_SIZE  128 /**< Tamaño máximo para formatear una línea CSV */
+#define BUFFER_10MIN_SIZE     100
 
 // Conteo de ciclos para promedios (obsoletos, mantenidos por compatibilidad)
 #define CYCLES_AVG_10MIN 60   /**< 60 ciclos equivalen a 10 minutos */
@@ -73,6 +76,8 @@ extern "C" {
 #define MAX_SAMPLES_PER_10MIN 60 /**< Muestras de 10 s en 10 minutos */
 #define AVG10_PER_HOUR        6  /**< Cantidad de ventanas de 10 min en 1 hora */
 #define AVG1H_PER_DAY         24 /**< Cantidad de promedios horarios en 24 h */
+
+#define MAX_SENSORES_SPS30    3
 
 /* === Public data type declarations
  * =========================================================== */
@@ -102,6 +107,13 @@ typedef struct {
     uint32_t inicio;    /**< Índice del elemento más antiguo */
     uint32_t cantidad;  /**< Cantidad actual de elementos */
 } BufferCircular;
+
+// --- Estructura del buffer circular por sensor ---
+typedef struct {
+    SensorData buffer[BUFFER_10MIN_SIZE];
+    uint8_t head;
+    uint8_t count;
+} BufferCircularSensor;
 
 /**
  * @struct PMDataAveraged
@@ -156,6 +168,9 @@ typedef struct {
     uint8_t n_datos_validos;
 } EstadisticasPM;
 */
+
+// --- Buffers por sensor (asumiendo sensor_id ∈ {1, 2, 3}) ---
+static BufferCircularSensor buffers_10min[MAX_SENSORES_SPS30];
 
 /* === Public function declarations
  * ============================================================ */
@@ -321,6 +336,28 @@ void data_logger_increment_cycle(void);
 void data_logger_check_cycle_averages(void);
 
 void data_logger_print_value(void);
+
+/**
+ * @brief Guarda los datos de un sensor en el buffer circular de 10 minutos.
+ *
+ * Esta función recibe una estructura `SensorData` completa, que incluye
+ * identificador del sensor, datos de PM, temperatura, humedad y timestamp,
+ * y lo inserta en el buffer correspondiente.
+ *
+ * @param data Estructura con los datos del sensor.
+ * @return true si se guardaron correctamente, false si ocurrió un error (e.g. overflow).
+ */
+bool buffer_guardar(SensorBufferTemp * buffer);
+
+/**
+ * @brief Guarda múltiples mediciones desde un buffer temporal en los buffers circulares
+ * correspondientes.
+ * @param temp_buffer Puntero al buffer temporal con lecturas de múltiples sensores.
+ * @param buffers_destino Arreglo de buffers circulares, uno por sensor.
+ * @return true si todas las mediciones se guardaron correctamente, false si al menos una falló.
+ */
+bool data_logger_store_sensor_data(SensorBufferTemp * temp_buffer,
+                                   BufferCircularSensor * buffers_destino);
 
 /* === End of documentation
  * ==================================================================== */

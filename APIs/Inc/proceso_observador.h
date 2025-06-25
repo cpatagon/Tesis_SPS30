@@ -37,6 +37,7 @@
 #include "sps30_comm.h"
 #include "time_rtc.h"
 #include "uart.h"
+#include "observador_MEF.h"
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -58,40 +59,6 @@ extern "C" {
 #define CONC_MIN_PM                 0.0f
 #define CONC_MAX_PM                 1000.0f
 #define DELAY_MS_SPS30_LECTURA      5000
-
-/**
- * @enum Estado_Adquisicion
- * @brief Estados posibles del proceso de adquisición de datos.
- *
- * Esta enumeración describe las fases principales en las que se divide
- * el funcionamiento del sistema de adquisición de datos:
- *
- * - @c ESTADO_REPOSO: Estado inicial o sin actividad programada.
- * - @c ESTADO_ALMACENANDO_10MIN: Acumulación activa de muestras de PM2.5
- *   en el buffer de 10 minutos.
- * - @c ESTADO_CALCULANDO_10MIN: Proceso de cálculo estadístico sobre el buffer
- *   de 10 minutos y su posterior almacenamiento en el buffer de 1 hora.
- * - @c ESTADO_ALMACENANDO_1H: Acumulación de promedios de 10 minutos para análisis horario.
- *
- * Se pueden agregar estados adicionales para cubrir transmisión, errores,
- * modos de bajo consumo, etc.
- */
-typedef enum {
-    ESTADO_REPOSO = 0,        /**< Sin actividad activa de adquisición. */
-    ESTADO_ALMACENANDO_10MIN, /**< Guardando muestras en buffer de 10 minutos. */
-    ESTADO_CALCULANDO_10MIN,  /**< Calculando estadísticas y limpiando buffer de 10 min. */
-    ESTADO_ALMACENANDO_1H,    /**< Acumulando datos de 1 hora (no implementado aún). */
-    // ESTADO_TRANSMITIENDO,       /**< Estado para transmisión de datos. */
-    // ESTADO_ERROR,               /**< Estado de error crítico. */
-} Estado_Adquisicion;
-
-/**
- * @brief Variable global que representa el estado actual del proceso de adquisición.
- *
- * Esta variable es utilizada por el módulo `proceso_observador` para coordinar
- * la lógica de captura y procesamiento de datos en función del tiempo actual del sistema.
- */
-extern Estado_Adquisicion estado_adquisicion;
 
 /* === Declaraciones de funciones públicas === */
 
@@ -133,18 +100,6 @@ bool proceso_observador_3PM_2TH(SPS30 * sensor, uint8_t sensor_id, const char * 
  */
 bool proceso_observador_with_time(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str,
                                   float temp_amb, float hum_amb);
-
-/**
- * @brief Actualiza el estado actual de la máquina de adquisición de datos.
- *
- * Esta función permite modificar el estado interno del proceso observador
- * para reflejar la fase actual del ciclo de adquisición (reposo, almacenamiento,
- * cálculo, etc.). Es utilizada principalmente por funciones de control de tiempo
- * como `time_rtc_ActualizarEstadoPorTiempo()` para transicionar el estado según el RTC.
- *
- * @param nuevo_estado Nuevo estado a asignar. Debe ser un valor del enum `Estado_Adquisicion`.
- */
-void proceso_observador_set_estado(Estado_Adquisicion nuevo_estado);
 
 #ifdef __cplusplus
 }

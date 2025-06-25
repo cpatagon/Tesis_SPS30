@@ -28,12 +28,12 @@
 
 /* === Headers files inclusions =============================================================== */
 
+#include <sensor.h>
 #include "sistema_init.h"
 #include "data_logger.h"
 #include "rtc_ds3231_for_stm32_hal.h"
 #include "sps30_multi.h"
 #include "DHT22.h"
-#include "sensors.h"
 #include "mp_sensors_info.h"
 #include "time_rtc.h"
 
@@ -116,7 +116,7 @@ void sistema_imprimir_datos_iniciales(void) {
     }
 
     float temp, hum;
-    if (DHT22_ReadSimple(&dht_ambiente, &temp, &hum)) {
+    if (DHT22_ReadSimple(&dhtA, &temp, &hum)) {
         uart_print("Temperatura ambiente inicial: %.1f°C | Humedad: %.1f%%\n", temp, hum);
     }
 }

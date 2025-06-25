@@ -28,6 +28,7 @@
 #include "rtc.h"
 #include "data_logger.h"
 #include "time_rtc.h"
+#include "sensor.h"
 
 #include "uart.h"
 #ifdef UNIT_TESTING
@@ -165,9 +166,10 @@ static bool is_10min_boundary(const ds3231_time_t * dt) {
  * @return true si ha pasado 1 hora o más; false en caso contrario.
  */
 
+/*
 static bool is_1hour_boundary(const ds3231_time_t * dt) {
     return time_diff_seconds(&hourly_start_time, dt) >= 60 * 60;
-}
+}*/
 
 /**
  * @brief Verifica si ha transcurrido un intervalo de 24 horas desde el tiempo inicial del buffer
@@ -179,10 +181,10 @@ static bool is_1hour_boundary(const ds3231_time_t * dt) {
  * @param dt Puntero a la estructura de tiempo actual (`ds3231_time_t`).
  * @return true si han pasado 24 horas o más; false en caso contrario.
  */
-
+/*
 static bool is_24hour_boundary(const ds3231_time_t * dt) {
     return time_diff_seconds(&daily_start_time, dt) >= 24 * 3600;
-}
+}*/
 
 /**
  * @brief Calcula la diferencia de tiempo en segundos entre dos instantes del mismo día o con
@@ -572,6 +574,67 @@ float data_logger_get_average_pm25_id(uint8_t sensor_id, uint32_t num_mediciones
 
     // Retornar promedio o 0 si no hay datos
     return (contador > 0) ? (suma / contador) : 0.0f;
+}
+
+/**
+ * @brief Calcula estadísticas de PM2.5 para cada sensor a partir de buffers de 10 minutos.
+ *
+ * @param buffers Vector de buffers circulares de 10 minutos.
+ * @param resultados Array de estructuras para almacenar estadísticas (una por sensor).
+ * @param max_resultados Largo máximo del array de resultados.
+ * @return true si al menos un sensor tuvo datos válidos y se calcularon estadísticas, false en caso
+ * contrario.
+ */
+bool data_logger_estadistica_10min_pm25(BufferCircularSensor * buffers,
+                                        EstadisticaPM25 * resultados, uint8_t max_resultados) {
+    if (!buffers || !resultados || max_resultados == 0)
+        return false;
+
+    uint8_t count = 0;
+
+    for (uint8_t i = 0; i < MAX_SENSORES_SPS30 && count < max_resultados; ++i) {
+        BufferCircularSensor * buf = &buffers[i];
+
+        if (buf->count == 0)
+            continue;
+
+        float suma = 0.0f, min = 10000.0f, max = -10000.0f;
+        float valores[BUFFER_10MIN_SIZE];
+        uint8_t n = 0;
+
+        // Recorre los elementos del buffer desde el head hacia atrás
+        for (uint8_t j = 0; j < buf->count; ++j) {
+            uint8_t idx = (buf->head + BUFFER_10MIN_SIZE - j - 1) % BUFFER_10MIN_SIZE;
+            float val = buf->buffer[idx].pm2_5;
+
+            valores[n++] = val;
+            suma += val;
+            if (val < min)
+                min = val;
+            if (val > max)
+                max = val;
+        }
+
+        float promedio = suma / n;
+
+        // Calcular desv. estándar
+        float suma_cuadrados = 0.0f;
+        for (uint8_t j = 0; j < n; ++j) {
+            float diff = valores[j] - promedio;
+            suma_cuadrados += diff * diff;
+        }
+
+        float stddev = (n > 1) ? sqrtf(suma_cuadrados / (n - 1)) : 0.0f;
+
+        resultados[count++] = (EstadisticaPM25){.sensor_id = i + 1,
+                                                .promedio = promedio,
+                                                .min = min,
+                                                .max = max,
+                                                .desviacion_estandar = stddev,
+                                                .num_validos = n};
+    }
+
+    return (count > 0);
 }
 
 /**
@@ -1071,6 +1134,120 @@ uint8_t data_logger_get_count(uint8_t sensor_id) {
     }
 
     return count;
+}
+
+/**
+ * @brief Inserta una muestra de datos en el buffer circular de 10 minutos.
+ *
+ * Esta función guarda una estructura `SensorData` en el buffer correspondiente
+ * al sensor indicado por `sensor_id`. Se utiliza una política de sobreescritura
+ * controlada cuando el buffer alcanza su capacidad máxima (`BUFFER_10MIN_SIZE`).
+ *
+ * Se espera que `sensor_id` comience en 1 y esté dentro del rango válido definido
+ * por `MAX_SENSORES_SPS30`. Internamente, se usa un índice base cero.
+ *
+ * @param data Estructura `SensorData` que contiene PM, temperatura, humedad y timestamp.
+ * @return `true` si la muestra fue almacenada correctamente. `false` si el sensor_id está fuera de
+ * rango.
+ *
+ * @note Si el buffer está lleno, el nuevo dato sobrescribe el más antiguo. Se imprime advertencia
+ * por UART.
+ *
+ * @see SensorData
+ */
+
+bool buffer_guardar(SensorBufferTemp * buffer) {
+    if (!buffer || buffer->cantidad == 0)
+        return false;
+
+    for (uint8_t i = 0; i < buffer->cantidad; ++i) {
+        SensorData * data = &buffer->datos[i];
+
+        if (data->sensor_id == 0 || data->sensor_id > MAX_SENSORES_SPS30) {
+            uart_print("[ERROR] buffer_guardar: ID de sensor fuera de rango (%d)\r\n",
+                       data->sensor_id);
+            continue;
+        }
+
+        uint8_t idx = data->sensor_id - 1;
+        BufferCircularSensor * buf = &buffers_10min[idx];
+
+        buf->buffer[buf->head] = *data;
+        buf->head = (buf->head + 1) % BUFFER_10MIN_SIZE;
+
+        if (buf->count < BUFFER_10MIN_SIZE) {
+            buf->count++;
+        } else {
+            uart_print("[WARN] buffer_guardar: sobreescritura en buffer sensor %d\r\n",
+                       data->sensor_id);
+        }
+    }
+
+    // opcional: reiniciar buffer->cantidad = 0;
+    return true;
+}
+/*
+bool data_logger_store_sensor_data(const SensorData * data) {
+    if (!data)
+        return false;
+
+    if (data->sensor_id == 0 || data->sensor_id > MAX_SENSORES_SPS30) {
+        uart_print("[ERROR] ID de sensor inválido: %d\r\n", data->sensor_id);
+        return false;
+    }
+
+    uint8_t idx = data->sensor_id - 1;
+    BufferCircularSensor * buf = &buffers_10min[idx];
+
+    buf->buffer[buf->head] = *data;
+    buf->head = (buf->head + 1) % BUFFER_10MIN_SIZE;
+
+    if (buf->count < BUFFER_10MIN_SIZE) {
+        buf->count++;
+    } else {
+        uart_print("[WARN] buffer sensor %d sobreescribiendo datos\r\n", data->sensor_id);
+    }
+
+    return true;
+}*/
+
+/**
+ * @brief Guarda múltiples mediciones desde un buffer temporal en los buffers circulares
+ * correspondientes.
+ * @param temp_buffer Puntero al buffer temporal con lecturas de múltiples sensores.
+ * @param buffers_destino Arreglo de buffers circulares, uno por sensor.
+ * @return true si todas las mediciones se guardaron correctamente, false si al menos una falló.
+ */
+bool data_logger_store_sensor_data(SensorBufferTemp * temp_buffer,
+                                   BufferCircularSensor * buffers_destino) {
+    if (!temp_buffer || !buffers_destino || temp_buffer->cantidad == 0)
+        return false;
+
+    bool ok = true;
+
+    for (uint8_t i = 0; i < temp_buffer->cantidad; ++i) {
+        SensorData * d = &temp_buffer->datos[i];
+
+        if (d->sensor_id == 0 || d->sensor_id > MAX_SENSORES_SPS30) {
+            uart_print("[ERROR] ID de sensor inválido en buffer_temp\r\n");
+            ok = false;
+            continue;
+        }
+
+        uint8_t idx = d->sensor_id - 1;
+        BufferCircularSensor * dest = &buffers_destino[idx];
+
+        dest->buffer[dest->head] = *d;
+        dest->head = (dest->head + 1) % BUFFER_10MIN_SIZE;
+
+        if (dest->count < BUFFER_10MIN_SIZE) {
+            dest->count++;
+        } else {
+            uart_printf("[WARN] buffer sensor %d sobreescribiendo datos\r\n", d->sensor_id);
+        }
+    }
+
+    return ok;
 }
 
 /* === Función principal: cálculo periódico basado en RTC ===================================== */

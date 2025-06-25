@@ -48,10 +48,9 @@
  * ===================================================== */
 // Aquí puedes declarar variables que solo se utilizan en este módulo.
 
-extern UART_HandleTypeDef
-    huart3; // Asume que huart3 está definido en otro lugar.
+extern UART_HandleTypeDef huart3; // Asume que huart3 está definido en otro lugar.
 extern SPI_HandleTypeDef hspi1;
-UART_HandleTypeDef *uart_debug = NULL;
+UART_HandleTypeDef * uart_debug = NULL;
 
 /* === Declaraciones de funciones privadas
  * ===================================================== */
@@ -76,69 +75,78 @@ UART_HandleTypeDef *uart_debug = NULL;
  * @brief Envía un mensaje a través de UART3.
  * @param message Mensaje a enviar.
  */
-void uart_print(const char *format, ...) {
-  char buffer[256];
-  va_list args;
-  va_start(args, format);
-  vsnprintf(buffer, sizeof(buffer), format, args);
-  va_end(args);
+void uart_print(const char * format, ...) {
+    char buffer[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
 
-  if (uart_debug != NULL) {
-    if (HAL_UART_Transmit(uart_debug, (uint8_t *)buffer, strlen(buffer),
-                          UART_TX_TIMEOUT_MS) != HAL_OK) {
-      return; // Transmission failed or timed out
+    if (uart_debug != NULL) {
+        if (HAL_UART_Transmit(uart_debug, (uint8_t *)buffer, strlen(buffer), UART_TX_TIMEOUT_MS) !=
+            HAL_OK) {
+            return; // Transmission failed or timed out
+        }
     }
-  }
 }
 /**
  * @brief Imprime un vector de datos como hexadecimal a través de UART3.
  * @param data_len Longitud de los datos a imprimir.
  * @param data Datos a imprimir.
  */
-void uart_vector_print(uint16_t data_len, const uint8_t *data) {
-  char buffer[200];                  // Aumenta el tamaño si es necesario.
-  memset(buffer, 0, sizeof(buffer)); // Limpia el buffer.
-  char *ptr = buffer; // Puntero para la posición actual en el buffer.
-  int remaining = sizeof(buffer); // Espacio restante en el buffer.
-  for (uint16_t i = 0; i < data_len; ++i) {
-    int written = snprintf(ptr, remaining, "%02X ", data[i]);
-    ptr += written;       // Avanza el puntero.
-    remaining -= written; // Decrementa el espacio restante.
-    if (remaining <= 0)
-      break; // Evita desbordamiento del búfer.
-  }
-  uart_print(buffer); // Imprimir todos los bytes formateados.
+void uart_vector_print(uint16_t data_len, const uint8_t * data) {
+    char buffer[200];                  // Aumenta el tamaño si es necesario.
+    memset(buffer, 0, sizeof(buffer)); // Limpia el buffer.
+    char * ptr = buffer;               // Puntero para la posición actual en el buffer.
+    int remaining = sizeof(buffer);    // Espacio restante en el buffer.
+    for (uint16_t i = 0; i < data_len; ++i) {
+        int written = snprintf(ptr, remaining, "%02X ", data[i]);
+        ptr += written;       // Avanza el puntero.
+        remaining -= written; // Decrementa el espacio restante.
+        if (remaining <= 0)
+            break; // Evita desbordamiento del búfer.
+    }
+    uart_print(buffer); // Imprimir todos los bytes formateados.
 }
 
 // Función para enviar comando al SPS30 y esperar una respuesta
-void uart_send_command(const uint8_t *command, uint16_t commandSize) {
-  HAL_UART_Transmit(&huart5, command, commandSize, 100);
+void uart_send_command(const uint8_t * command, uint16_t commandSize) {
+    HAL_UART_Transmit(&huart5, command, commandSize, 100);
 }
 
 // Función para iniciar la recepción de datos de forma asincrónica
-void uart_receive_async(uint8_t *dataBuffer, uint16_t bufferSize) {
-  HAL_UART_Receive(&huart5, dataBuffer, bufferSize, 100);
+void uart_receive_async(uint8_t * dataBuffer, uint16_t bufferSize) {
+    HAL_UART_Receive(&huart5, dataBuffer, bufferSize, 100);
 }
 // Función para enviar comando al SPS30 y esperar una respuesta
-void uart_send_receive(const uint8_t *command, uint16_t commandSize,
-                       uint8_t *dataBuffer, uint16_t bufferSize) {
-  HAL_UART_Transmit(&huart5, command, commandSize, 100);
-  HAL_UART_Receive(&huart5, dataBuffer, bufferSize, 100);
+void uart_send_receive(const uint8_t * command, uint16_t commandSize, uint8_t * dataBuffer,
+                       uint16_t bufferSize) {
+    HAL_UART_Transmit(&huart5, command, commandSize, 100);
+    HAL_UART_Receive(&huart5, dataBuffer, bufferSize, 100);
 }
 
 void probar_spi_sd(void) {
-  uint8_t tx = 0xFF;
-  uint8_t rx = 0x00;
+    uint8_t tx = 0xFF;
+    uint8_t rx = 0x00;
 
-  uart_print("Probando SPI con microSD...\r\n");
+    uart_print("Probando SPI con microSD...\r\n");
 
-  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1, HAL_MAX_DELAY);
-  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);
+    HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1, HAL_MAX_DELAY);
+    HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
 
-  char msg[64];
-  snprintf(msg, sizeof(msg), "Respuesta SPI de SD: 0x%02X\r\n", rx);
-  uart_print(msg);
+    char msg[64];
+    snprintf(msg, sizeof(msg), "Respuesta SPI de SD: 0x%02X\r\n", rx);
+    uart_print(msg);
+}
+
+void uart_printf(const char * format, ...) {
+    char buffer[128];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    uart_print(buffer); // usa tu función actual de impresión
 }
 
 /* === Fin de la documentación

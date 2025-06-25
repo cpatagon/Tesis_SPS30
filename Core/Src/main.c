@@ -17,6 +17,7 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <sensor.h>
 #include "main.h"
 #include "fatfs.h"
 #include "i2c.h"
@@ -40,7 +41,7 @@
 #include "microSD.h"
 #include "mp_sensors_info.h"
 #include "DHT22.h"
-#include "sensors.h"
+#include "observador_MEF.h"
 
 #include "sistema_init.h"
 
@@ -113,6 +114,8 @@ int main(void) {
     SystemClock_Config();
 
     /* USER CODE BEGIN SysInit */
+
+    observador_MEF_init();
 
     /* USER CODE END SysInit */
 
@@ -190,6 +193,8 @@ int main(void) {
     /* USER CODE BEGIN WHILE */
 
     while (1) {
+
+        observador_MEF_actualizar();
 
         /* === Medición de sensores DHT22 (ambiente y cámara) ========================== */
 

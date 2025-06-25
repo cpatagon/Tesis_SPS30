@@ -22,28 +22,19 @@
 
 /* === Inclusión de archivos
  * =============================================================== */
+#include <sensor.h>
 #include "proceso_observador.h"
 #include "DHT22.h"
 #include "data_logger.h"
 #include "rtc_ds3231_for_stm32_hal.h" // para ds3231_get_datetime()
-#include "sensors.h"
 #include "time_rtc.h"
 #include <stdio.h>
 #include <string.h>
 
 #include "ParticulateDataAnalyzer.h"
 
-static float pm25_sensores[3];
-static int sensores_recibidos = 0;
-
-Estado_Adquisicion estado_adquisicion = ESTADO_REPOSO;
-
 /* === Definición de funciones
  * ============================================================= */
-
-void proceso_observador_set_estado(Estado_Adquisicion nuevo_estado) {
-    estado_adquisicion = nuevo_estado;
-}
 
 /**
  * @brief Realiza una lectura completa desde un sensor SPS30 y registra los datos si son válidos.
@@ -173,30 +164,26 @@ static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const cha
 
     while (reintentos--) {
         sensor->start_measurement(sensor);
-        HAL_Delay(DELAY_MS_SPS30_LECTURA);
 
         ConcentracionesPM pm = sensor->get_concentrations(sensor);
         sensor->stop_measurement(sensor);
 
-        bool pm_valido = (pm.pm1_0 > CONC_MIN_PM && pm.pm1_0 < CONC_MAX_PM) ||
-                         (pm.pm2_5 > CONC_MIN_PM && pm.pm2_5 < CONC_MAX_PM) ||
-                         (pm.pm4_0 > CONC_MIN_PM && pm.pm4_0 < CONC_MAX_PM) ||
-                         (pm.pm10 > CONC_MIN_PM && pm.pm10 < CONC_MAX_PM);
+        if ((pm.pm1_0 > CONC_MIN_PM && pm.pm1_0 < CONC_MAX_PM) ||
+            (pm.pm2_5 > CONC_MIN_PM && pm.pm2_5 < CONC_MAX_PM) ||
+            (pm.pm4_0 > CONC_MIN_PM && pm.pm4_0 < CONC_MAX_PM) ||
+            (pm.pm10 > CONC_MIN_PM && pm.pm10 < CONC_MAX_PM)) {
 
-        if (pm_valido) {
             ds3231_time_t dt;
             if (!ds3231_get_datetime(&dt)) {
                 uart_print("%s", rtc_error_msg);
                 return false;
             }
 
-            // 📤 Imprimir valores por UART
             char buffer[BUFFER_SIZE_MSG_PM_FORMAT];
             snprintf(buffer, sizeof(buffer), MSG_PM_FORMAT_WITH_TIME, datetime_str, sensor_id,
                      pm.pm1_0, pm.pm2_5, pm.pm4_0, pm.pm10);
             uart_print("%s", buffer);
 
-            // 📦 Preparar estructura de datos completa
             ParticulateData data = {
                 .sensor_id = sensor_id,
                 .pm1_0 = pm.pm1_0,
@@ -215,44 +202,14 @@ static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const cha
                 .sec = dt.sec,
             };
 
-            // 📝 Guardar en microSD como línea RAW
             data_logger_store_raw(&data);
-
-            // 🧠 Máquina de estados
-            switch (estado_adquisicion) {
-            case ESTADO_ALMACENANDO_10MIN:
-                data_logger_store_measurement(sensor_id, pm, temp_amb, hum_amb);
-                break;
-
-            case ESTADO_CALCULANDO_10MIN:
-                if (pm25_buffer_get_count(sensor_id) > 0) {
-                    EstadisticasPM stats;
-                    pm25_buffer_calcular_estadisticas(sensor_id, &stats);
-
-                    // POR IMPLEMENTAR
-                    //                       data_logger_store_avg_hour(sensor_id,
-                    //                       stats.pm2_5_promedio,
-                    //                                                  stats.n_datos_validos,
-                    //                                                  stats.min, stats.max,
-                    //                                                  stats.std);
-                    pm25_buffer_reset(sensor_id);
-                }
-                break;
-
-            default:
-                // ESTADO_REPOSO o no definido: sin acción
-                break;
-            }
-
-            // 🧮 Procesamiento posterior al ciclo
-
+            // registrar_lectura_pm25(sensor_id, pm.pm2_5);
             return true;
         }
 
         uart_print("%s", MSG_ERROR_REINT);
     }
 
-    // 🚨 Reportar fallo tras todos los reintentos
     char error_msg[BUFFER_SIZE_MSG_ERROR_FALLO];
     snprintf(error_msg, sizeof(error_msg), MSG_ERROR_FALLO, datetime_str, sensor_id);
     uart_print("%s", error_msg);
