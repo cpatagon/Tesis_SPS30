@@ -36,6 +36,7 @@
 #include "pm25_buffer.h"
 #include "data_logger.h"
 #include "mp_sensors_info.h"
+#include "data_types.h"
 #include <math.h>
 #include <string.h> // memset
 
@@ -69,9 +70,9 @@ float pm25_buffer_get_value(uint8_t sensor_id, uint8_t index) {
     const MedicionMP * medicion = data_logger_get_medicion(sensor_id, index);
     if (medicion == NULL)
         return -1.0f;
-    return medicion->valores.pm2_5;
-}
 
+    return medicion->pm2_5;
+}
 /**
  * @brief Calcula estadísticas (promedio, min, max, std) del buffer de PM2.5.
  */
@@ -89,7 +90,8 @@ void pm25_buffer_calcular_estadisticas(uint8_t sensor_id, EstadisticasPM * stats
         const MedicionMP * m = data_logger_get_medicion(sensor_id, i);
         if (m == NULL)
             continue;
-        float val = m->valores.pm2_5;
+
+        float val = m->pm2_5; // CAMBIO CLAVE
         valores[i] = val;
         sum += val;
         if (i == 0 || val < min)
@@ -100,6 +102,7 @@ void pm25_buffer_calcular_estadisticas(uint8_t sensor_id, EstadisticasPM * stats
 
     float promedio = sum / count;
     float var = 0.0f;
+
     for (uint8_t i = 0; i < count; ++i) {
         float diff = valores[i] - promedio;
         var += diff * diff;

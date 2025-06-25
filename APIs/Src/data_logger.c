@@ -693,9 +693,10 @@ void data_logger_print_summary(void) {
              "Buffer alta frecuencia: %u/%u muestras\n"
              "Buffer horario:         %u/%u muestras\n"
              "Buffer diario:          %u/%u muestras\n",
-             buffer_alta_frecuencia.cantidad, buffer_alta_frecuencia.capacidad,
-             buffer_hora.cantidad, buffer_hora.capacidad, buffer_dia.cantidad,
-             buffer_dia.capacidad);
+             (unsigned int)buffer_alta_frecuencia.cantidad,
+             (unsigned int)buffer_alta_frecuencia.capacidad, (unsigned int)buffer_hora.cantidad,
+             (unsigned int)buffer_hora.capacidad, (unsigned int)buffer_dia.cantidad,
+             (unsigned int)buffer_dia.capacidad);
     uart_print("%s", buffer);
 
     // Mostrar las últimas 3 mediciones si hay datos

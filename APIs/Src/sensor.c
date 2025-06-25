@@ -212,41 +212,32 @@ SensorStatus sensor_leer_datos(MedicionMP * datos_array) {
  * @param[in]  max_len   Cantidad máxima de elementos a llenar en out_array.
  * @return Número de sensores leídos correctamente.
  */
-uint8_t sensor_get_all(SensorData * out_array, uint8_t max_len) {
+uint8_t sensor_get_all(MedicionMP * out_array, uint8_t max_len) {
     if (!out_array || max_len == 0)
         return 0;
 
-    const char * rtc_error_msg = "[WARN] RTC no respondió, se colocarán ceros en fecha/hora.\r\n";
-
     ds3231_time_t dt;
-    bool rtc_ok = ds3231_get_datetime(&dt);
-    if (!rtc_ok) {
-        uart_print(rtc_error_msg);
-        // Se colocan ceros explícitamente
+    if (!ds3231_get_datetime(&dt)) {
         memset(&dt, 0, sizeof(ds3231_time_t));
+        uart_print("[WARN] RTC no respondió, se colocarán ceros en fecha/hora.\r\n");
     }
-    /*
-        float temp_amb = 0.0f, hum_amb = 0.0f;
-        float temp_cam = 0.0f, hum_cam = 0.0f;
-      */
+
     DHT22_Data sensorData;
     float temp_amb = -99.9f;
     float hum_amb = -99.9f;
     float temp_cam = -99.9f;
     float hum_cam = -99.9f;
 
-    // Lectura sensores ambientales si están disponibles
-    if (!DHT22_Read(&dhtA, &sensorData) == DHT22_OK) {
+    if (DHT22_Read(&dhtA, &sensorData) == DHT22_OK) {
         temp_amb = sensorData.temperatura;
         hum_amb = sensorData.humedad;
         uart_print("Ambiente: Temp: %.1f C, Hum: %.1f%%\n", temp_amb, hum_amb);
     }
 
-    // Opcional: sensores internos para cámara
     if (DHT22_Read(&dhtB, &sensorData) == DHT22_OK) {
         temp_cam = sensorData.temperatura;
         hum_cam = sensorData.humedad;
-        uart_print("Camara: Temp: %.1f C, Hum: %.1f%%\n", temp_cam, hum_cam);
+        uart_print("Cámara: Temp: %.1f C, Hum: %.1f%%\n", temp_cam, hum_cam);
     }
 
     uint8_t count = 0;
@@ -254,28 +245,24 @@ uint8_t sensor_get_all(SensorData * out_array, uint8_t max_len) {
         ConcentracionesPM pm =
             sensores_sps30[i].sensor.get_concentrations(&sensores_sps30[i].sensor);
 
-        SensorData d = {
-            .year = dt.year,
-            .month = dt.month,
-            .day = dt.day,
-            .hour = dt.hour,
-            .min = dt.min,
-            .sec = dt.sec,
-            .bloque_10min = dt.min / 10,
+        if (pm.pm2_5 < 0.0f || pm.pm2_5 > 1000.0f)
+            continue;
 
+        MedicionMP m = {
+            .timestamp = dt,
+            .bloque_10min = dt.min / 10,
             .sensor_id = sensores_sps30[i].id,
             .pm1_0 = pm.pm1_0,
             .pm2_5 = pm.pm2_5,
             .pm4_0 = pm.pm4_0,
             .pm10 = pm.pm10,
-
             .temp_amb = temp_amb,
             .hum_amb = hum_amb,
             .temp_cam = temp_cam,
             .hum_cam = hum_cam,
         };
 
-        out_array[count++] = d;
+        out_array[count++] = m;
     }
 
     return count;

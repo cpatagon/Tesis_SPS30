@@ -34,6 +34,7 @@
 #include "time_rtc.h"
 #include "uart.h"
 #include "pm25_buffer.h"
+#include "data_types.h"
 
 /* === Macros definitions ====================================================================== */
 
@@ -42,12 +43,12 @@
 static Estado_Observador estado_actual = ESTADO_REPOSO;
 static Estado_Observador estado_anterior = ESTADO_REPOSO;
 
-TemporalBuffer buffer_temp;
-uint8_t cantidad = 0;
+/* === Buffers temporales y resultados ========================================================= */
+
+static TemporalBuffer buffer_temp = {0};
+static EstadisticaPM25 resultado;
 
 /* === Private variable declarations =========================================================== */
-
-EstadisticaPM25 resultado;
 
 /* === Private function declarations =========================================================== */
 
@@ -98,16 +99,20 @@ void observador_MEF_actualizar(void) {
         }
         break;
 
-    case ESTADO_LECTURA:
-        if (sensor_leer_datos(&buffer_temp) == SENSOR_OK) {
+    case ESTADO_LECTURA: {
+        buffer_temp.cantidad = sensor_leer_datos(buffer_temp.muestras);
+
+        if (buffer_temp.cantidad > 0) {
             observador_MEF_cambiar_estado(ESTADO_ALMACENAMIENTO);
         } else {
             observador_MEF_cambiar_estado(ESTADO_ERROR);
         }
         break;
+    }
 
     case ESTADO_ALMACENAMIENTO:
-        if (data_logger_store_sensor_data(&buffer_temp, &buffers_10min)) {
+        if (data_logger_store_sensor_data(buffer_temp.muestras, buffer_temp.cantidad,
+                                          buffers_10min)) {
             if (time_rtc_hay_cambio_bloque()) {
                 observador_MEF_cambiar_estado(ESTADO_CALCULO);
             } else {
@@ -118,23 +123,22 @@ void observador_MEF_actualizar(void) {
         }
         break;
 
-    case ESTADO_CALCULO: {
-        if (data_logger_estadistica_10min_pm25(&buffers_10min, &resultado)) {
+    case ESTADO_CALCULO:
+        if (data_logger_estadistica_10min_pm25(buffers_10min, &resultado)) {
             observador_MEF_cambiar_estado(ESTADO_GUARDADO);
         } else {
             uart_print("[ERROR] No se pudieron calcular estadísticas de PM2.5\r\n");
             observador_MEF_cambiar_estado(ESTADO_ERROR);
         }
         break;
-    }
     case ESTADO_GUARDADO: {
         data_logger_store_avg10_csv(&resultado); // o resultado_global si es global
         observador_MEF_cambiar_estado(ESTADO_LIMPIESA);
         break;
     }
     case ESTADO_LIMPIESA: {
-        data_logger_buffer_limpiar_todos(&buffers_10min);
-        data_logger_buffer_limpiar_todos(&buffer_temp);
+        data_logger_buffer_limpiar_todos(buffers_10min);
+        buffer_temp.cantidad = 0; // limpiar buffer temporal
         observador_MEF_cambiar_estado(ESTADO_REPOSO);
         break;
     }

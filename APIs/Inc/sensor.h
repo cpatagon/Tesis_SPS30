@@ -138,7 +138,7 @@ SensorStatus sensor_leer_datos(MedicionMP * datos_array);
  * @return Número de sensores leídos correctamente.
  */
 
-uint8_t sensor_get_all(SensorData * out_array, uint8_t max_len);
+uint8_t sensor_get_all(MedicionMP * out_array, uint8_t max_len);
 
 /* === End of documentation
  * ==================================================================== */

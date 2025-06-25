@@ -83,6 +83,11 @@ typedef struct {
     uint16_t count;
 } TimeWindow;
 
+typedef struct {
+    MedicionMP muestras[MAX_SAMPLES_PER_10MIN];
+    uint8_t cantidad;
+} TemporalBuffer;
+
 #ifdef __cplusplus
 }
 #endif
