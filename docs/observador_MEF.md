@@ -59,7 +59,8 @@ Este archivo coordina el ciclo de adquisición de datos en un sistema embebido S
 
 ## 🔄 Diagrama de estados (FSM)
 
-```stateDiagram-v2
+```mermaid
+stateDiagram-v2
     [*] --> ESTADO_REPOSO
 
     ESTADO_REPOSO --> ESTADO_LECTURA : rtc_esta_activo() == true
