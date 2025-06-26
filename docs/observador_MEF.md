@@ -78,7 +78,7 @@ stateDiagram-v2
     LIMPIESA --> REPOSO
 
     ERROR --> REPOSO
-\🧪 Posibles mejoras
+Posibles mejoras
 
     Implementar temporización con tick para que el sistema sea no bloqueante al 100%.
 
@@ -86,7 +86,7 @@ stateDiagram-v2
 
     Generar logs persistentes de cada transición (útil para depuración post-mortem).
 
-\📦 Archivos relacionados
+Archivos relacionados
 
     sensor.h — Funciones para adquisición desde SPS30 y DHT22
 
