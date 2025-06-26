@@ -37,6 +37,16 @@ extern "C" {
 
 /* === Public macros definitions =============================================================== */
 
+#pragma once
+
+#define DEBUG_MODE 0 // ← cambiar a 0 para compilar sin mensajes de debug
+
+#if DEBUG_MODE
+#define DEBUG_PRINT(...) uart_print(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...) // nada
+#endif
+
 /** Unidades estándar de las mediciones */
 #define UNIT_PM_CONCENTRATION "ug/m3"   ///< Unidades de concentración de partículas
 #define UNIT_TEMPERATURE      "Celsius" ///< Temperatura en grados Celsius

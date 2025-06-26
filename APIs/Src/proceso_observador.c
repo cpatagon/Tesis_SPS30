@@ -160,7 +160,7 @@ bool proceso_observador_3PM_2TH(SPS30 * sensor, uint8_t sensor_id, const char * 
 static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str,
                                     float temp_amb, float hum_amb, float temp_cam, float hum_cam,
                                     const char * rtc_error_msg) {
-    uart_print("[INFO] entra a  proceso_observador_base()\r\n");
+    DEBUG_PRINT("[INFO] entra a  proceso_observador_base()\r\n");
     int reintentos = NUM_REINT;
 
     while (reintentos--) {
@@ -179,14 +179,14 @@ static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const cha
                 uart_print("%s", rtc_error_msg);
                 return false;
             } else {
-                uart_print(
+                DEBUG_PRINT(
                     "[WARN] RTC funcionando correctamente en  proceso_observador_base()\r\n");
             }
 
             char buffer[BUFFER_SIZE_MSG_PM_FORMAT];
             snprintf(buffer, sizeof(buffer), MSG_PM_FORMAT_WITH_TIME, datetime_str, sensor_id,
                      pm.pm1_0, pm.pm2_5, pm.pm4_0, pm.pm10);
-            uart_print("%s", buffer);
+            DEBUG_PRINT("%s", buffer);
 
             ParticulateData data = {
                 .sensor_id = sensor_id,

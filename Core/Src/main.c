@@ -30,6 +30,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>  // Añade esto para sprintf
 #include <string.h> // Añade esto para strlen
+#include "config_global.h"
 #include "sps30_multi.h"
 #include "sps30_comm.h"
 #include "uart.h"
@@ -135,58 +136,42 @@ int main(void) {
     uart_debug = &huart3;
 
     /* Initialization welcome message */
-    uart_print("\n\n-------------------------------------------------------------------\n");
-    uart_print("|   Sistema de Monitoreo de Material Particulado  |\n");
-    uart_print("---------------------------------------------------------------------\n");
+    MSG_BANNER_PM25_HEADER();
 
     bool sistema_ok = sistema_verificar_componentes();
 
     if (!sistema_ok) {
-        uart_print("[WARN] Error en la verificación del sistema. Algunos componentes no están "
-                   "operativos.\r\n");
-        // Aquí podrías registrar el error, encender un LED de advertencia o guardar en un log.
+        MSG_COMPONENTES_ERROR();
     } else {
-        uart_print("[INFO] Todos los componentes verificados correctamente.\r\n");
+        MSG_COMPONENTES_OK();
     }
 
-    // Crea una nueva instancia de MicroSD
-    MicroSD * sd =
-        microSD_create(&huart3, "initlog.txt", "/"); // Inicialización con el directorio raíz
-    uart_print("Inicializando sistema de almacenamiento de datos 1A ...\n");
+    MicroSD * sd = microSD_create(&huart3, "initlog.txt", "/");
+    MSG_SD_INICIANDO_1A();
 
     if (sd == NULL) {
-        // Manejar error de creación
         Error_Handler();
     }
 
-    uart_print("fin Inicializando sistema de almacenamiento de datos 4...\n");
-    microSD_setDirectory(sd, "/"); // Cambia el directorio según sea necesario
+    MSG_SD_FINAL_4();
+    microSD_setDirectory(sd, "/");
 
-    uart_print("Inicializando sistema de almacenamiento de datos 3 ...\n");
+    MSG_SD_INICIANDO_3();
     if (!data_logger_init()) {
-        uart_print("¡Error al inicializar el sistema de almacenamiento!\n");
+        MSG_SD_ERROR_INIT();
     }
 
     HAL_Delay(200);
 
-    /* Inicializar sensores SPS30 disponibles*/
-
     rtc_auto_init(); // Detecta y configura el RTC correcto
-
-    //    test_format_csv_line();
-
     RTC_ReceiveTimeFromTerminal(&huart3);
 
-    /* Initialize SPS30 sensors array */
-
-    uart_print("Inicializando sensores SPS30...\n");
+    MSG_SENSORES_INICIALIZANDO();
     inicializar_sensores_sps30();
-
     mp_sensors_info_init(); // ← Aquí obtienes y guardas los seriales
 
     /* Buffer de Mensajes */
 
-    uint32_t ciclo_contador = 0;
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -196,108 +181,8 @@ int main(void) {
 
     while (1) {
 
-        /*
-
-        for (uint8_t i = 0; i < NUM_SENSORES_SPS30; i++) {
-            SPS30 * sensor = &sensores_sps30[i].sensor;
-
-            uart_printf("[TEST] Iniciando prueba de sensor SPS30 ID:%d\r\n", sensores_sps30[i].id);
-
-            sensor->wake_up(sensor);
-            HAL_Delay(100);  // pequeño delay tras wakeup
-            sensor->start_measurement(sensor);
-            HAL_Delay(3000); // esperar tiempo para que genere datos
-
-            // Descartar la primera lectura
-            ConcentracionesPM pm = sensor->get_concentrations(sensor);
-            HAL_Delay(1000); // espera adicional
-
-            // Segunda lectura
-            pm = sensor->get_concentrations(sensor);
-
-            // Verificación
-            if (pm.pm2_5 <= 0.0f || pm.pm2_5 > 1000.0f) {
-                uart_printf("[ERROR] Sensor ID:%d sin datos válidos (PM2.5 = %.2f)\r\n",
-                            sensores_sps30[i].id, pm.pm2_5);
-            } else {
-                uart_printf("[OK] Sensor ID:%d Datos SPS30:\r\n", sensores_sps30[i].id);
-                uart_printf(" PM1.0 = %.2f ug/m3\r\n", pm.pm1_0);
-                uart_printf(" PM2.5 = %.2f ug/m3\r\n", pm.pm2_5);
-                uart_printf(" PM4.0 = %.2f ug/m3\r\n", pm.pm4_0);
-                uart_printf(" PM10  = %.2f ug/m3\r\n", pm.pm10);
-            }
-
-            sensor->stop_measurement(sensor);
-            HAL_Delay(100);
-            uart_print("[TEST] Fin de prueba SPS30\r\n");
-        } */
-
-        // SPS30 sensor_prueba;
-        // SPS30_init(&sensor_prueba, &huart3);  // o el UART correspondiente
-
-        // test_sps30_funcionamiento(&sensor_prueba);
-
         observador_MEF_actualizar();
 
-        /* === Medición de sensores DHT22 (ambiente y cámara) ========================== */
-
-        /*        DHT22_Data sensorData;
-                float temp_amb = -99.9f;
-                float hum_amb = -99.9f;
-                float temp_cam = -99.9f;
-                float hum_cam = -99.9f;
-
-                if (DHT22_Read(&dhtA, &sensorData) == DHT22_OK) {
-                    temp_amb = sensorData.temperatura;
-                    hum_amb = sensorData.humedad;
-                    uart_print("Ambiente: Temp: %.1f C, Hum: %.1f%%\n", temp_amb, hum_amb);
-                } else {
-                    uart_print("Error leyendo DHT22 ambiente\n");
-                }
-
-                if (DHT22_Read(&dhtB, &sensorData) == DHT22_OK) {
-                    temp_cam = sensorData.temperatura;
-                    hum_cam = sensorData.humedad;
-                    uart_print("Camara: Temp: %.1f C, Hum: %.1f%%\n", temp_cam, hum_cam);
-                } else {
-                    uart_print("Error leyendo DHT22 cámara\n");
-                }
-        */
-        /* =========Pruebas de Buffer ============*/
-
-        //        uart_print("Imprime Sumario\n");
-        //        data_logger_print_summary(); /* para borrar*/
-
-        //        uart_print("Imprime resumen\n");
-        //        data_logger_print_value(); /* para borrar*/
-
-        /* === Timestamp y encabezado de ciclo ========================================= */
-        /*        char datetime_buffer[32];
-                char msg_buffer[128];
-                time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
-                time_rtc_ActualizarEstadoPorTiempo(); // <--- ACTUALIZA LA MÁQUINA DE ESTADOS
-
-                snprintf(msg_buffer, sizeof(msg_buffer), "\n=== Ciclo de medicion #%lu: %s ===\n",
-                         ++ciclo_contador, datetime_buffer);
-                uart_print(msg_buffer);
-        */
-        /* === Ciclo de medición SPS30 ================================================= */
-        /*        for (int i = 0; i < sensores_disponibles; i++) {
-                    proceso_observador_3PM_2TH(&sensores_sps30[i].sensor, sensores_sps30[i].id,
-                                               datetime_buffer, temp_amb, hum_amb, temp_cam,
-           hum_cam);
-                }
-        */
-        /* === Reporte de resumen cada 10 ciclos ======================================= */
-        /*       if (ciclo_contador % 10U == 0U) {
-                   data_logger_print_summary();
-
-                   float pm25_avg = data_logger_get_average_pm25_id(0U, 10U);
-                   snprintf(msg_buffer, sizeof(msg_buffer),
-                            "Promedio PM2.5 (ultimas 10 mediciones): %.2f ug/m3\n", pm25_avg);
-                   uart_print(msg_buffer);
-               }
-       */
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */

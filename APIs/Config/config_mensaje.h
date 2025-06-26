@@ -37,8 +37,40 @@ extern "C" {
 
 /* === Public macros definitions =============================================================== */
 
-#define MSG_ERROR_REINT "**ERROR[SPS30_RETRY] Intento fallido, reintentando...\n"
-#define MSG_ERROR_FALLO "**ERROR[SPS30_FAIL][%s] Sensor ID:%d sin respuesta tras 3 intentos\n"
+// === BANNERS ===
+#define MSG_BANNER_PM25_HEADER()                                                                   \
+    do {                                                                                           \
+        uart_print("\n\n-------------------------------------------------------------------\n");   \
+        uart_print("|   Sistema de Monitoreo de Material Particulado  |\n");                       \
+        uart_print("---------------------------------------------------------------------\n");     \
+    } while (0)
+
+// === ESTADOS DEL SISTEMA ===
+#define MSG_COMPONENTES_ERROR()                                                                    \
+    uart_print("[WARN] Error en la verificación del sistema. Algunos componentes no están "      \
+               "operativos.\r\n")
+
+#define MSG_COMPONENTES_OK()                                                                       \
+    uart_print("[INFO] Todos los componentes verificados correctamente.\r\n")
+
+// === ALMACENAMIENTO / microSD ===
+#define MSG_SD_INICIANDO_1A()                                                                      \
+    DEBUG_PRINT("Inicializando sistema de almacenamiento de datos 1A ...\n")
+
+#define MSG_SD_INICIANDO_3() uart_print("Inicializando sistema de almacenamiento de datos 3 ...\n")
+
+#define MSG_SD_FINAL_4()     DEBUG_PRINT("fin Inicializando sistema de almacenamiento de datos 4...\n")
+
+#define MSG_SD_ERROR_INIT()  uart_print("¡Error al inicializar el sistema de almacenamiento!\n")
+
+// === SENSORES ===
+#define MSG_SENSORES_INICIALIZANDO() uart_print("Inicializando sensores SPS30...\n")
+
+// === RTC ===
+#define MSG_RTC_SOLICITAR_FECHA_HORA() uart_print("Ingrese fecha y hora [YYYYMMDDHHMMSS;]:\r\n")
+
+#define MSG_ERROR_REINT                "**ERROR[SPS30_RETRY] Intento fallido, reintentando...\n"
+#define MSG_ERROR_FALLO                "**ERROR[SPS30_FAIL][%s] Sensor ID:%d sin respuesta tras 3 intentos\n"
 
 /* === MicroSD == */
 
