@@ -86,8 +86,9 @@ void observador_MEF_debug_estado(void) {
 }
 
 void observador_MEF_actualizar(void) {
+
     if (estado_actual != estado_anterior) {
-        uart_printf("[MEF] Transición: %d -> %d\r\n", estado_anterior, estado_actual);
+        uart_printf("[MEF] Transicion: %d -> %d\r\n", estado_anterior, estado_actual);
         estado_anterior = estado_actual;
     }
 
@@ -100,16 +101,17 @@ void observador_MEF_actualizar(void) {
         break;
 
     case ESTADO_LECTURA: {
-        buffer_temp.cantidad = sensor_leer_datos(buffer_temp.muestras);
+        SensorStatus status = sensor_leer_datos(buffer_temp.muestras); // ✅ Correcto
 
-        if (buffer_temp.cantidad > 0) {
+        if (status == SENSOR_OK) {
+            buffer_temp.cantidad =
+                sensores_disponibles; // o el valor real que devuelvas si modificas la función
             observador_MEF_cambiar_estado(ESTADO_ALMACENAMIENTO);
         } else {
             observador_MEF_cambiar_estado(ESTADO_ERROR);
         }
         break;
     }
-
     case ESTADO_ALMACENAMIENTO:
         if (data_logger_store_sensor_data(buffer_temp.muestras, buffer_temp.cantidad,
                                           buffers_10min)) {

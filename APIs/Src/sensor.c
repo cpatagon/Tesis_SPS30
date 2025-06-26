@@ -136,8 +136,13 @@ SensorStatus sensor_leer_datos(void) {
 // #define NUM_SENSORES_SPS30 3
 
 SensorStatus sensor_leer_datos(MedicionMP * datos_array) {
-    if (datos_array == NULL)
+
+    if (datos_array == NULL) {
+        uart_print("[WARN] datos_array==NULL.\r\n");
         return SENSOR_ERROR;
+    } else {
+        uart_print("[INFO] sistema entra funsion sensor_leer_datos()\r\n");
+    }
 
     DHT22_Data sensorData;
     bool dht_ok = true;
@@ -147,17 +152,23 @@ SensorStatus sensor_leer_datos(MedicionMP * datos_array) {
 
     // Leer DHT ambiente
     if (DHT22_Read(&dhtA, &sensorData) == DHT22_OK) {
+        uart_print("[INFO] Lee datos de DTH A\r\n");
         temp_amb = sensorData.temperatura;
         hum_amb = sensorData.humedad;
+        uart_print("[DATOS] Temp = %.1f , Hum = %.1f\r\n", temp_amb, hum_amb);
     } else {
+        uart_print("[WARN] no lee datos DTH ambiente.\r\n");
         dht_ok = false;
     }
 
     // Leer DHT cámara
     if (DHT22_Read(&dhtB, &sensorData) == DHT22_OK) {
+        uart_print("[INFO] Lee datos de DHT22 B\r\n");
         temp_cam = sensorData.temperatura;
         hum_cam = sensorData.humedad;
+        uart_print("[DATOS] Temp = %.1f , Hum = %.1f\r\n", temp_cam, hum_cam);
     } else {
+        uart_print("[WARN] no lee datos DHT22 camara.\r\n");
         dht_ok = false;
     }
 
@@ -165,12 +176,14 @@ SensorStatus sensor_leer_datos(MedicionMP * datos_array) {
     ds3231_time_t dt;
     if (!ds3231_get_datetime(&dt)) {
         memset(&dt, 0, sizeof(dt));
-        uart_print("[WARN] RTC no respondió, se colocaron ceros en fecha/hora.\r\n");
+        uart_print("[WARN] RTC no respondio, se colocaron ceros en fecha/hora.\r\n");
     }
 
     char datetime_buffer[32];
     snprintf(datetime_buffer, sizeof(datetime_buffer), "%04u-%02u-%02u %02u:%02u:%02u", dt.year,
              dt.month, dt.day, dt.hour, dt.min, dt.sec);
+
+    uart_print("[RTC] Fecha/Hora actual: %s\r\n", datetime_buffer);
 
     uint8_t count = 0;
 
@@ -198,7 +211,7 @@ SensorStatus sensor_leer_datos(MedicionMP * datos_array) {
                                    temp_amb, hum_amb, temp_cam, hum_cam);
     }
 
-    return (count > 0 && dht_ok) ? SENSOR_OK : SENSOR_ERROR;
+    return (count > 0) ? SENSOR_OK : SENSOR_ERROR;
 }
 
 /**

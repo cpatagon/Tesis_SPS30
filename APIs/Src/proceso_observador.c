@@ -160,11 +160,12 @@ bool proceso_observador_3PM_2TH(SPS30 * sensor, uint8_t sensor_id, const char * 
 static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const char * datetime_str,
                                     float temp_amb, float hum_amb, float temp_cam, float hum_cam,
                                     const char * rtc_error_msg) {
+    uart_print("[INFO] entra a  proceso_observador_base()\r\n");
     int reintentos = NUM_REINT;
 
     while (reintentos--) {
         sensor->start_measurement(sensor);
-
+        HAL_Delay(2000); // ⏳ Espera crítica tras start_measurement()
         ConcentracionesPM pm = sensor->get_concentrations(sensor);
         sensor->stop_measurement(sensor);
 
@@ -177,6 +178,9 @@ static bool proceso_observador_base(SPS30 * sensor, uint8_t sensor_id, const cha
             if (!ds3231_get_datetime(&dt)) {
                 uart_print("%s", rtc_error_msg);
                 return false;
+            } else {
+                uart_print(
+                    "[WARN] RTC funcionando correctamente en  proceso_observador_base()\r\n");
             }
 
             char buffer[BUFFER_SIZE_MSG_PM_FORMAT];

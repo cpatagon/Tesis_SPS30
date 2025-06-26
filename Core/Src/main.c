@@ -192,73 +192,117 @@ int main(void) {
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
 
+    observador_MEF_init();
+
     while (1) {
+
+        /*
+
+        for (uint8_t i = 0; i < NUM_SENSORES_SPS30; i++) {
+            SPS30 * sensor = &sensores_sps30[i].sensor;
+
+            uart_printf("[TEST] Iniciando prueba de sensor SPS30 ID:%d\r\n", sensores_sps30[i].id);
+
+            sensor->wake_up(sensor);
+            HAL_Delay(100);  // pequeño delay tras wakeup
+            sensor->start_measurement(sensor);
+            HAL_Delay(3000); // esperar tiempo para que genere datos
+
+            // Descartar la primera lectura
+            ConcentracionesPM pm = sensor->get_concentrations(sensor);
+            HAL_Delay(1000); // espera adicional
+
+            // Segunda lectura
+            pm = sensor->get_concentrations(sensor);
+
+            // Verificación
+            if (pm.pm2_5 <= 0.0f || pm.pm2_5 > 1000.0f) {
+                uart_printf("[ERROR] Sensor ID:%d sin datos válidos (PM2.5 = %.2f)\r\n",
+                            sensores_sps30[i].id, pm.pm2_5);
+            } else {
+                uart_printf("[OK] Sensor ID:%d Datos SPS30:\r\n", sensores_sps30[i].id);
+                uart_printf(" PM1.0 = %.2f ug/m3\r\n", pm.pm1_0);
+                uart_printf(" PM2.5 = %.2f ug/m3\r\n", pm.pm2_5);
+                uart_printf(" PM4.0 = %.2f ug/m3\r\n", pm.pm4_0);
+                uart_printf(" PM10  = %.2f ug/m3\r\n", pm.pm10);
+            }
+
+            sensor->stop_measurement(sensor);
+            HAL_Delay(100);
+            uart_print("[TEST] Fin de prueba SPS30\r\n");
+        } */
+
+        // SPS30 sensor_prueba;
+        // SPS30_init(&sensor_prueba, &huart3);  // o el UART correspondiente
+
+        // test_sps30_funcionamiento(&sensor_prueba);
 
         observador_MEF_actualizar();
 
         /* === Medición de sensores DHT22 (ambiente y cámara) ========================== */
 
-        DHT22_Data sensorData;
-        float temp_amb = -99.9f;
-        float hum_amb = -99.9f;
-        float temp_cam = -99.9f;
-        float hum_cam = -99.9f;
+        /*        DHT22_Data sensorData;
+                float temp_amb = -99.9f;
+                float hum_amb = -99.9f;
+                float temp_cam = -99.9f;
+                float hum_cam = -99.9f;
 
-        if (DHT22_Read(&dhtA, &sensorData) == DHT22_OK) {
-            temp_amb = sensorData.temperatura;
-            hum_amb = sensorData.humedad;
-            uart_print("Ambiente: Temp: %.1f C, Hum: %.1f%%\n", temp_amb, hum_amb);
-        } else {
-            uart_print("Error leyendo DHT22 ambiente\n");
-        }
+                if (DHT22_Read(&dhtA, &sensorData) == DHT22_OK) {
+                    temp_amb = sensorData.temperatura;
+                    hum_amb = sensorData.humedad;
+                    uart_print("Ambiente: Temp: %.1f C, Hum: %.1f%%\n", temp_amb, hum_amb);
+                } else {
+                    uart_print("Error leyendo DHT22 ambiente\n");
+                }
 
-        if (DHT22_Read(&dhtB, &sensorData) == DHT22_OK) {
-            temp_cam = sensorData.temperatura;
-            hum_cam = sensorData.humedad;
-            uart_print("Camara: Temp: %.1f C, Hum: %.1f%%\n", temp_cam, hum_cam);
-        } else {
-            uart_print("Error leyendo DHT22 cámara\n");
-        }
-
+                if (DHT22_Read(&dhtB, &sensorData) == DHT22_OK) {
+                    temp_cam = sensorData.temperatura;
+                    hum_cam = sensorData.humedad;
+                    uart_print("Camara: Temp: %.1f C, Hum: %.1f%%\n", temp_cam, hum_cam);
+                } else {
+                    uart_print("Error leyendo DHT22 cámara\n");
+                }
+        */
         /* =========Pruebas de Buffer ============*/
 
-        uart_print("Imprime Sumario\n");
-        data_logger_print_summary(); /* para borrar*/
+        //        uart_print("Imprime Sumario\n");
+        //        data_logger_print_summary(); /* para borrar*/
 
-        uart_print("Imprime resumen\n");
-        data_logger_print_value(); /* para borrar*/
+        //        uart_print("Imprime resumen\n");
+        //        data_logger_print_value(); /* para borrar*/
 
         /* === Timestamp y encabezado de ciclo ========================================= */
-        char datetime_buffer[32];
-        char msg_buffer[128];
-        time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
-        time_rtc_ActualizarEstadoPorTiempo(); // <--- ACTUALIZA LA MÁQUINA DE ESTADOS
+        /*        char datetime_buffer[32];
+                char msg_buffer[128];
+                time_rtc_GetFormattedDateTime(datetime_buffer, sizeof(datetime_buffer));
+                time_rtc_ActualizarEstadoPorTiempo(); // <--- ACTUALIZA LA MÁQUINA DE ESTADOS
 
-        snprintf(msg_buffer, sizeof(msg_buffer), "\n=== Ciclo de medicion #%lu: %s ===\n",
-                 ++ciclo_contador, datetime_buffer);
-        uart_print(msg_buffer);
-
+                snprintf(msg_buffer, sizeof(msg_buffer), "\n=== Ciclo de medicion #%lu: %s ===\n",
+                         ++ciclo_contador, datetime_buffer);
+                uart_print(msg_buffer);
+        */
         /* === Ciclo de medición SPS30 ================================================= */
-        for (int i = 0; i < sensores_disponibles; i++) {
-            proceso_observador_3PM_2TH(&sensores_sps30[i].sensor, sensores_sps30[i].id,
-                                       datetime_buffer, temp_amb, hum_amb, temp_cam, hum_cam);
-        }
-
+        /*        for (int i = 0; i < sensores_disponibles; i++) {
+                    proceso_observador_3PM_2TH(&sensores_sps30[i].sensor, sensores_sps30[i].id,
+                                               datetime_buffer, temp_amb, hum_amb, temp_cam,
+           hum_cam);
+                }
+        */
         /* === Reporte de resumen cada 10 ciclos ======================================= */
-        if (ciclo_contador % 10U == 0U) {
-            data_logger_print_summary();
+        /*       if (ciclo_contador % 10U == 0U) {
+                   data_logger_print_summary();
 
-            float pm25_avg = data_logger_get_average_pm25_id(0U, 10U);
-            snprintf(msg_buffer, sizeof(msg_buffer),
-                     "Promedio PM2.5 (ultimas 10 mediciones): %.2f ug/m3\n", pm25_avg);
-            uart_print(msg_buffer);
-        }
-
+                   float pm25_avg = data_logger_get_average_pm25_id(0U, 10U);
+                   snprintf(msg_buffer, sizeof(msg_buffer),
+                            "Promedio PM2.5 (ultimas 10 mediciones): %.2f ug/m3\n", pm25_avg);
+                   uart_print(msg_buffer);
+               }
+       */
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
 
-        HAL_Delay(10000); // Espera 10 segundos antes de la próxima lectura
+        HAL_Delay(5000); // Espera 10 segundos antes de la próxima lectura
     }
 
     /* USER CODE END 3 */
