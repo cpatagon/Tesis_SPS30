@@ -1,6 +1,6 @@
 /*
  * Nombre del archivo: observador_MEF.c
- * Descripción: [Breve descripción del archivo]
+ * Descripción: Implementación de la máquina de estados para el proceso de observación de PM2.5.
  * Autor: lgomez
  * Creado en: 22-06-2025
  * Derechos de Autor: (C) 2023 [Tu nombre o el de tu organización]
@@ -24,7 +24,9 @@
  */
 /**
  * @file observador_MEF.c
- * @brief Implementación de la MEF para el sistema de adquisición de datos PM2.5.
+ * @brief Implementación de la máquina de estados para el proceso de observación de PM2.5.
+ *
+ * Coordina el flujo del sistema entre adquisición, almacenamiento y cálculo estadístico.
  */
 /* === Headers files inclusions =============================================================== */
 
@@ -60,30 +62,68 @@ static EstadisticaPM25 resultado;
 
 /* === Public function implementation ========================================================== */
 
+/**
+ * @brief Inicializa la máquina de estados del observador en estado REPOSO.
+ *
+ * Reinicia los estados interno y anterior a REPOSO y muestra mensaje por UART.
+ */
 void observador_MEF_init(void) {
     estado_actual = ESTADO_REPOSO;
     estado_anterior = ESTADO_REPOSO;
     uart_print("[MEF] Inicializado en estado REPOSO\r\n");
 }
 
+/**
+ * @brief Cambia el estado actual de la máquina de estados del observador.
+ *
+ * @param nuevo Nuevo estado a asignar (enum Estado_Observador).
+ */
 void observador_MEF_cambiar_estado(Estado_Observador nuevo) {
     estado_actual = nuevo;
 }
 
+/**
+ * @brief Obtiene el estado actual de la máquina de estados.
+ *
+ * @return Estado_Observador Estado actual del observador.
+ */
 Estado_Observador observador_MEF_estado_actual(void) {
     return estado_actual;
 }
 
+/**
+ * @brief Fuerza un reinicio de la máquina de estados y limpia los buffers de PM2.5.
+ *
+ * Utiliza `pm25_rbuffer_limpiar()` y vuelve al estado REPOSO.
+ */
 void observador_MEF_forzar_reset(void) {
     pm25_rbuffer_limpiar();
     observador_MEF_init();
     uart_print("[MEF] Reinicio forzado del sistema de adquisición\r\n");
 }
 
+/**
+ * @brief Imprime por UART el estado actual en formato legible.
+ *
+ * Utiliza un arreglo de strings con nombres legibles para depuración.
+ */
 void observador_MEF_debug_estado(void) {
     const char * nombres[] = {"REPOSO", "LECTURA", "ALMACENAMIENTO", "CALCULO", "ERROR"};
     uart_printf("[MEF] Estado actual: %s\r\n", nombres[estado_actual]);
 }
+
+/**
+ * @brief Actualiza el estado de la máquina según el flujo lógico del sistema.
+ *
+ * Este es el núcleo de la MEF. Evalúa transiciones entre estados según condiciones:
+ * - `ESTADO_REPOSO`: espera cambio de tiempo.
+ * - `ESTADO_LECTURA`: adquiere datos de sensores.
+ * - `ESTADO_ALMACENAMIENTO`: guarda datos en buffer circular.
+ * - `ESTADO_CALCULO`: calcula estadísticas si hubo cambio de bloque de tiempo.
+ * - `ESTADO_GUARDADO`: guarda estadísticas en microSD.
+ * - `ESTADO_LIMPIESA`: limpia buffers y vuelve a reposo.
+ * - `ESTADO_ERROR`: muestra mensaje y reinicia.
+ */
 
 void observador_MEF_actualizar(void) {
 
