@@ -60,27 +60,66 @@ Este archivo coordina el ciclo de adquisición de datos en un sistema embebido S
 ## 🔄 Diagrama de estados (FSM)
 
 stateDiagram-v2
-    [*] --> REPOSO
+    [*] --> ESTADO_REPOSO
 
-    REPOSO --> LECTURA           : rtc_esta_activo()
-    LECTURA --> ALMACENAMIENTO  : sensor_leer_datos() == OK
-    LECTURA --> ERROR            : sensor_leer_datos() == ERROR
+    ESTADO_REPOSO --> ESTADO_LECTURA : rtc_esta_activo() == true
 
-    ALMACENAMIENTO --> CALCULO  : time_rtc_hay_cambio_bloque()
-    ALMACENAMIENTO --> LECTURA  : si no hay cambio de bloque
-    ALMACENAMIENTO --> ERROR    : fallo en data_logger_store_sensor_data()
+    ESTADO_LECTURA --> ESTADO_ALMACENAMIENTO : sensor_leer_datos() == SENSOR_OK
+    ESTADO_LECTURA --> ESTADO_ERROR : sensor_leer_datos() != SENSOR_OK
 
-    CALCULO --> GUARDADO        : estadísticas exitosas
-    CALCULO --> ERROR           : fallo en estadística
+    ESTADO_ALMACENAMIENTO --> ESTADO_CALCULO : data_logger_store_sensor_data() == true && time_rtc_hay_cambio_bloque() == true
+    ESTADO_ALMACENAMIENTO --> ESTADO_LECTURA : data_logger_store_sensor_data() == true && time_rtc_hay_cambio_bloque() == false
+    ESTADO_ALMACENAMIENTO --> ESTADO_ERROR : data_logger_store_sensor_data() == false
 
-    GUARDADO --> LIMPIEZA
-    LIMPIEZA --> REPOSO
+    ESTADO_CALCULO --> ESTADO_GUARDADO : data_logger_estadistica_10min_pm25() == true
+    ESTADO_CALCULO --> ESTADO_ERROR : data_logger_estadistica_10min_pm25() == false
 
-    ERROR --> REPOSO
+    ESTADO_GUARDADO --> ESTADO_LIMPIESA : data_logger_store_avg10_csv() ejecutado
 
-    note right of GUARDADO
-      Se escriben archivos CSV
-      para depuración post mortem.
+    ESTADO_LIMPIESA --> ESTADO_REPOSO : data_logger_buffer_limpiar_todos() completado
+
+    ESTADO_ERROR --> ESTADO_REPOSO : siempre
+
+    note right of ESTADO_REPOSO
+        - Espera a que RTC esté activo
+        - Estado de bajo consumo
+        - Punto de reinicio después de errores
+    end note
+
+    note right of ESTADO_LECTURA
+        - Lee datos de sensores PM2.5
+        - Almacena en buffer_temp.muestras
+        - Actualiza buffer_temp.cantidad
+    end note
+
+    note right of ESTADO_ALMACENAMIENTO
+        - Guarda datos en buffers_10min
+        - Verifica cambio de bloque temporal
+        - Bucle de lectura si no hay cambio
+    end note
+
+    note right of ESTADO_CALCULO
+        - Calcula estadísticas de PM2.5
+        - Procesa datos de 10 minutos
+        - Genera resultado estadístico
+    end note
+
+    note right of ESTADO_GUARDADO
+        - Escribe archivo CSV con promedios
+        - Almacenamiento permanente
+        - Datos para análisis posterior
+    end note
+
+    note right of ESTADO_LIMPIESA
+        - Limpia buffers_10min
+        - Resetea buffer_temp.cantidad
+        - Prepara para nuevo ciclo
+    end note
+
+    note right of ESTADO_ERROR
+        - Imprime mensaje de error por UART
+        - Manejo simple: retorno a REPOSO
+        - No hay reintentos automáticos
     end note
 
 
