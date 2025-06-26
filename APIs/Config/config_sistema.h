@@ -80,6 +80,10 @@ extern "C" {
 #define CONC_MAX_PM                 1000.0f
 #define DELAY_MS_SPS30_LECTURA      5000
 
+/* Reposso de ma maquina */
+
+#define DURACION_REPOSO_MS 5000 // Ejemplo: 5 segundos
+
 /* === Public data type declarations =========================================================== */
 
 /* === Public variable declarations ============================================================ */

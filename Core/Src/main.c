@@ -187,7 +187,7 @@ int main(void) {
 
         /* USER CODE BEGIN 3 */
 
-        HAL_Delay(5000); // Espera 10 segundos antes de la próxima lectura
+        // HAL_Delay(5000); // Espera 10 segundos antes de la próxima lectura
     }
 
     /* USER CODE END 3 */

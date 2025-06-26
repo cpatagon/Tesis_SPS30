@@ -50,6 +50,9 @@ static Estado_Observador estado_anterior = ESTADO_REPOSO;
 static TemporalBuffer buffer_temp = {0};
 static EstadisticaPM25 resultado;
 
+static uint32_t tiempo_inicio_reposo = 0;
+static bool reposo_esperando = false;
+
 /* === Private variable declarations =========================================================== */
 
 /* === Private function declarations =========================================================== */
@@ -135,8 +138,18 @@ void observador_MEF_actualizar(void) {
     switch (estado_actual) {
 
     case ESTADO_REPOSO:
-        if (rtc_esta_activo()) {
-            observador_MEF_cambiar_estado(ESTADO_LECTURA);
+        if (!reposo_esperando) {
+            tiempo_inicio_reposo = HAL_GetTick(); // Marca tiempo de entrada
+            reposo_esperando = true;
+        }
+
+        // Verificamos si pasó el tiempo deseado
+        if (HAL_GetTick() - tiempo_inicio_reposo >= DURACION_REPOSO_MS) {
+            reposo_esperando = false;
+
+            if (rtc_esta_activo()) {
+                observador_MEF_cambiar_estado(ESTADO_LECTURA);
+            }
         }
         break;
 
