@@ -59,26 +59,34 @@ Este archivo coordina el ciclo de adquisición de datos en un sistema embebido S
 
 ## 🔄 Diagrama de estados (FSM)
 
-```mermaid
 stateDiagram-v2
     [*] --> REPOSO
 
-    REPOSO --> LECTURA     : rtc_esta_activo()
-    LECTURA --> ALMACENAMIENTO : sensor_leer_datos() == OK
-    LECTURA --> ERROR      : sensor_leer_datos() == ERROR
+    REPOSO --> LECTURA           : rtc_esta_activo()
+    LECTURA --> ALMACENAMIENTO  : sensor_leer_datos() == OK
+    LECTURA --> ERROR            : sensor_leer_datos() == ERROR
 
-    ALMACENAMIENTO --> CALCULO     : time_rtc_hay_cambio_bloque()
-    ALMACENAMIENTO --> LECTURA     : si no hay cambio de bloque
-    ALMACENAMIENTO --> ERROR       : fallo en data_logger_store_sensor_data()
+    ALMACENAMIENTO --> CALCULO  : time_rtc_hay_cambio_bloque()
+    ALMACENAMIENTO --> LECTURA  : si no hay cambio de bloque
+    ALMACENAMIENTO --> ERROR    : fallo en data_logger_store_sensor_data()
 
-    CALCULO --> GUARDADO   : estadísticas exitosas
-    CALCULO --> ERROR      : fallo en estadística
+    CALCULO --> GUARDADO        : estadísticas exitosas
+    CALCULO --> ERROR           : fallo en estadística
 
-    GUARDADO --> LIMPIESA
-    LIMPIESA --> REPOSO
+    GUARDADO --> LIMPIEZA
+    LIMPIEZA --> REPOSO
 
     ERROR --> REPOSO
-Posibles mejoras
+
+    note right of GUARDADO
+      Se escriben archivos CSV
+      para depuración post mortem.
+    end note
+
+
+
+
+## Posibles mejoras
 
     Implementar temporización con tick para que el sistema sea no bloqueante al 100%.
 
@@ -86,7 +94,7 @@ Posibles mejoras
 
     Generar logs persistentes de cada transición (útil para depuración post-mortem).
 
-Archivos relacionados
+## Archivos relacionados
 
     sensor.h — Funciones para adquisición desde SPS30 y DHT22
 
@@ -98,6 +106,7 @@ Archivos relacionados
 
     time_rtc.h — Control y sincronización de RTC
 
-🪪 Licencia
+
+Licencia
 
 Este proyecto está licenciado bajo GNU GPL v3.0.
