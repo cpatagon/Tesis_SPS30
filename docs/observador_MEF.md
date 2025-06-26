@@ -61,7 +61,6 @@ Este archivo coordina el ciclo de adquisición de datos en un sistema embebido S
 
 ```mermaid
 stateDiagram-v2
-stateDiagram-v2
     [*] --> REPOSO
     REPOSO --> LECTURA
     LECTURA --> ALMACENAMIENTO
